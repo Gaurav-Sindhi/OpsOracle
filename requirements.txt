@@ -13,6 +13,7 @@ langchain-community==0.0.10
 langchain-google-genai==0.0.5
 google-generativeai==0.3.0
 pinecone-client==3.0.0
+anthropic
 
 # Data Processing & ML
 pandas==2.1.3
