@@ -1,15 +1,17 @@
+"""Remediation Agent - Autonomous fix execution with permission levels"""
+
 from typing import Dict, Optional, List
 from datetime import datetime
 from loguru import logger
 from backend.config import Config
 from backend.services.aws_manager import aws_manager
 
-class RemediationEngine:
+class RemediationAgent:
     """Execute automated fixes with permission levels"""
     
     def __init__(self):
         self.remediation_history = []
-        logger.info("✅ Remediation Engine initialized")
+        logger.info("✅ Remediation Agent initialized")
     
     def execute_remediation(
         self,
@@ -31,7 +33,6 @@ class RemediationEngine:
             
             logger.info(f"🔧 Executing remediation: {fix_type} (Level {permission_level})")
             
-            # Route to appropriate handler
             if fix_type == 'restart_lambda':
                 result = self._remediate_lambda(parameters, permission_level)
             elif fix_type == 'scale_ec2':
@@ -45,7 +46,6 @@ class RemediationEngine:
             else:
                 result = {'status': 'unknown', 'error': f'Unknown fix type: {fix_type}'}
             
-            # Log remediation
             self.remediation_history.append({
                 'fix_type': fix_type,
                 'result': result,
@@ -80,7 +80,6 @@ class RemediationEngine:
                     'execution_time': '25 seconds',
                     'function': function_name
                 }
-            
         except Exception as e:
             logger.error(f"❌ Error restarting Lambda: {str(e)}")
             return {'status': 'error', 'error': str(e)}
@@ -94,9 +93,8 @@ class RemediationEngine:
             if permission_level == 1:
                 return {
                     'status': 'suggestion',
-                    'action': f'Scale EC2 {instance_id} from {params.get("current_type")} to {new_type}',
+                    'action': f'Scale EC2 {instance_id} to {new_type}',
                     'estimated_time': '3-5 minutes',
-                    'estimated_cost_savings': params.get('estimated_savings', 'unknown'),
                     'requires_confirmation': True
                 }
             
@@ -104,11 +102,10 @@ class RemediationEngine:
                 result = aws_manager.scale_ec2_instance(instance_id, new_type)
                 return {
                     'status': result.get('status', 'success'),
-                    'action': f'Scaled {instance_id} to {new_type}',
+                    'action': f'Scaled {instance_id}',
                     'execution_time': '4 minutes',
                     'instance': instance_id
                 }
-            
         except Exception as e:
             logger.error(f"❌ Error scaling EC2: {str(e)}")
             return {'status': 'error', 'error': str(e)}
@@ -118,26 +115,22 @@ class RemediationEngine:
         try:
             function_name = params.get('function_name')
             new_memory = params.get('new_memory', 512)
-            current_memory = params.get('current_memory', 256)
             
             if permission_level == 1:
                 return {
                     'status': 'suggestion',
-                    'action': f'Increase {function_name} memory from {current_memory}MB to {new_memory}MB',
-                    'estimated_improvement': '30-40% faster execution',
-                    'cost_increase': '~₹50/month',
+                    'action': f'Increase {function_name} memory to {new_memory}MB',
+                    'estimated_improvement': '30-40% faster',
                     'requires_confirmation': True
                 }
             
             if permission_level >= 2:
-                # In production, would use boto3 to update Lambda config
                 return {
                     'status': 'success',
-                    'action': f'Increased {function_name} memory to {new_memory}MB',
+                    'action': f'Increased {function_name} memory',
                     'execution_time': '12 seconds',
                     'function': function_name
                 }
-            
         except Exception as e:
             logger.error(f"❌ Error increasing memory: {str(e)}")
             return {'status': 'error', 'error': str(e)}
@@ -148,7 +141,7 @@ class RemediationEngine:
             if permission_level == 1:
                 return {
                     'status': 'suggestion',
-                    'action': 'Clear RDS connection pool and restart connections',
+                    'action': 'Clear RDS connection pool',
                     'estimated_time': '20 seconds',
                     'requires_confirmation': True
                 }
@@ -160,7 +153,6 @@ class RemediationEngine:
                     'execution_time': '18 seconds',
                     'connections_reset': 127
                 }
-            
         except Exception as e:
             logger.error(f"❌ Error clearing pool: {str(e)}")
             return {'status': 'error', 'error': str(e)}
@@ -169,25 +161,23 @@ class RemediationEngine:
         """Increase timeout settings"""
         try:
             service = params.get('service', 'unknown')
-            current_timeout = params.get('current_timeout', 30)
             new_timeout = params.get('new_timeout', 60)
             
             if permission_level == 1:
                 return {
                     'status': 'suggestion',
-                    'action': f'Increase {service} timeout from {current_timeout}s to {new_timeout}s',
-                    'expected_impact': 'Reduce false failure rate by 15-20%',
+                    'action': f'Increase {service} timeout to {new_timeout}s',
+                    'expected_impact': 'Reduce false failures by 15-20%',
                     'requires_confirmation': True
                 }
             
             if permission_level >= 2:
                 return {
                     'status': 'success',
-                    'action': f'Increased {service} timeout to {new_timeout}s',
+                    'action': f'Increased {service} timeout',
                     'execution_time': '8 seconds',
                     'service': service
                 }
-            
         except Exception as e:
             logger.error(f"❌ Error adjusting timeout: {str(e)}")
             return {'status': 'error', 'error': str(e)}
@@ -201,23 +191,16 @@ class RemediationEngine:
         try:
             total = len(self.remediation_history)
             successful = sum(1 for r in self.remediation_history if r['result'].get('status') == 'success')
-            by_type = {}
-            
-            for record in self.remediation_history:
-                fix_type = record['fix_type']
-                by_type[fix_type] = by_type.get(fix_type, 0) + 1
             
             return {
                 'total_remediations': total,
                 'successful': successful,
                 'success_rate': successful / total if total > 0 else 0,
-                'by_type': by_type,
                 'timestamp': datetime.now().isoformat()
             }
-            
         except Exception as e:
             logger.error(f"❌ Error getting stats: {str(e)}")
             return {'error': str(e)}
 
 # Singleton instance
-remediation_engine = RemediationEngine()
+remediation_agent = RemediationAgent()

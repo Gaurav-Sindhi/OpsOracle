@@ -1,3 +1,5 @@
+"""Anomaly Detector - ML-based anomaly detection using Isolation Forest"""
+
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
@@ -6,7 +8,7 @@ import joblib
 from typing import Dict, List, Tuple
 from datetime import datetime
 from loguru import logger
-from config import Config
+from backend.config import Config
 import os
 
 class AnomalyDetector:
@@ -28,7 +30,6 @@ class AnomalyDetector:
                 self.is_trained = True
                 logger.info("📦 Loaded existing anomaly model")
             else:
-                # Create new model
                 self.model = IsolationForest(
                     contamination=0.1,
                     random_state=42,
@@ -44,16 +45,10 @@ class AnomalyDetector:
     def train(self, data: pd.DataFrame) -> Dict:
         """Train anomaly detector on historical data"""
         try:
-            # Prepare data
             X = data.select_dtypes(include=[np.number]).values
-            
-            # Scale features
             X_scaled = self.scaler.fit_transform(X)
-            
-            # Train model
             self.model.fit(X_scaled)
             
-            # Save model
             os.makedirs(os.path.dirname(Config.MODEL_PATH), exist_ok=True)
             joblib.dump(self.model, Config.MODEL_PATH)
             joblib.dump(self.scaler, Config.SCALER_PATH)
@@ -76,17 +71,13 @@ class AnomalyDetector:
         """Predict if metrics indicate anomaly"""
         try:
             if not self.is_trained:
-                logger.warning("⚠️  Model not trained, returning dummy prediction")
+                logger.warning("⚠️  Model not trained, using threshold detection")
                 return self._dummy_prediction(metrics)
             
-            # Convert metrics to feature vector
             X = self._metrics_to_features(metrics)
             X = X.reshape(1, -1)
-            
-            # Scale
             X_scaled = self.scaler.transform(X)
             
-            # Predict
             prediction = self.model.predict(X_scaled)[0]
             anomaly_score = -self.model.score_samples(X_scaled)[0]
             
@@ -105,19 +96,17 @@ class AnomalyDetector:
             if is_anomaly:
                 logger.warning(f"🚨 Anomaly detected! Score: {anomaly_score:.3f}")
             else:
-                logger.info(f"✅ No anomaly detected. Score: {anomaly_score:.3f}")
+                logger.info(f"✅ No anomaly. Score: {anomaly_score:.3f}")
             
             return result
             
         except Exception as e:
-            logger.error(f"❌ Error in anomaly prediction: {str(e)}")
+            logger.error(f"❌ Error in prediction: {str(e)}")
             return {'error': str(e), 'is_anomaly': False}
     
     def _metrics_to_features(self, metrics: Dict) -> np.ndarray:
         """Convert metric dict to feature vector"""
         features = []
-        
-        # Extract numeric values
         feature_names = [
             'cpu_utilization',
             'memory_utilization',
@@ -135,12 +124,11 @@ class AnomalyDetector:
         return np.array(features)
     
     def _dummy_prediction(self, metrics: Dict) -> Dict:
-        """Return dummy prediction when model not trained"""
+        """Return prediction when model not trained"""
         cpu = metrics.get('cpu_utilization', 0)
         memory = metrics.get('memory_utilization', 0)
         latency = metrics.get('request_latency', 0)
         
-        # Simple threshold-based anomaly detection
         anomaly_conditions = [
             cpu > 80,
             memory > 85,
@@ -156,7 +144,7 @@ class AnomalyDetector:
             'confidence': confidence,
             'threshold': Config.ANOMALY_THRESHOLD,
             'timestamp': datetime.now().isoformat(),
-            'warning': 'Model not trained - using threshold-based detection'
+            'warning': 'Model not trained - using threshold detection'
         }
     
     def detect_pattern(self, history: List[Dict]) -> Dict:
@@ -165,13 +153,12 @@ class AnomalyDetector:
             if len(history) < 5:
                 return {
                     'pattern_found': False,
-                    'message': 'Insufficient history for pattern detection'
+                    'message': 'Insufficient history'
                 }
             
             df = pd.DataFrame(history)
             numeric_cols = df.select_dtypes(include=[np.number]).columns
             
-            # Calculate correlations with failures
             correlations = {}
             for col in numeric_cols:
                 if 'failed' in df.columns:

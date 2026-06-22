@@ -1,3 +1,5 @@
+"""OpsOracle Configuration Management - Updated for Claude API"""
+
 import os
 from dotenv import load_dotenv
 from typing import Optional
@@ -8,22 +10,19 @@ class Config:
     """Central configuration for OpsOracle"""
     
     # AWS Configuration
-    AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
+    AWS_REGION = os.getenv("AWS_REGION", "ap-south-1")
     AWS_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY_ID")
     AWS_SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
     
-   # Anthropic Claude
-    ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-    CLAUDE_MODEL = os.getenv(
-    "CLAUDE_MODEL",
-    "claude-sonnet-4-20250514"
-)
+    # Claude API (Anthropic) - UPDATED
+    CLAUDE_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+    LLM_MODEL = "claude-3-5-sonnet-20241022"
     
-    # Pinecone
-    PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+    # Pinecone (Optional - for production RAG)
+    PINECONE_API_KEY = os.getenv("PINECONE_API_KEY", "")
     PINECONE_ENVIRONMENT = os.getenv("PINECONE_ENVIRONMENT", "us-west1-gcp")
-    PINECONE_INDEX = "opsorcale-incidents"
-
+    PINECONE_INDEX = "opsops-incidents"
+    
     # FastAPI
     API_HOST = os.getenv("FASTAPI_HOST", "0.0.0.0")
     API_PORT = int(os.getenv("FASTAPI_PORT", 8000))
@@ -33,7 +32,7 @@ class Config:
     
     # Database
     MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
-    DATABASE_NAME = os.getenv("DATABASE_NAME", "opsorcale_db")
+    DATABASE_NAME = os.getenv("DATABASE_NAME", "opsops_db")
     
     # Feature Flags
     ENABLE_AUTO_REMEDIATION = os.getenv("ENABLE_AUTO_REMEDIATION", "True").lower() == "true"
@@ -42,11 +41,11 @@ class Config:
     
     # Logging
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
-    LOG_FILE = os.getenv("LOG_FILE", "logs/opsorcale.log")
+    LOG_FILE = os.getenv("LOG_FILE", "logs/opsops.log")
     
     # ML Model paths
-    MODEL_PATH = "ml/models/anomaly_detector.pkl"
-    SCALER_PATH = "ml/models/scaler.pkl"
+    MODEL_PATH = "ml_models/anomaly_detector.pkl"
+    SCALER_PATH = "ml_models/scaler.pkl"
     
     # Thresholds
     ANOMALY_THRESHOLD = 0.7
@@ -66,15 +65,15 @@ class Config:
     def validate():
         """Validate that all required configs are set"""
         required = [
-        "ANTHROPIC_API_KEY",
-        "AWS_ACCESS_KEY",
-        "AWS_SECRET_KEY",
-   ]
-        missing = [key for key in required if not getattr(Config, key)]
+            "CLAUDE_API_KEY",
+            "AWS_ACCESS_KEY",
+            "AWS_SECRET_KEY",
+        ]
+        missing = [key for key in required if not getattr(Config, key, None)]
         if missing:
             raise ValueError(f"Missing required config: {missing}")
         return True
 
 if __name__ == "__main__":
     Config.validate()
-    print("✅ Configuration loaded successfully")
+    print("✅ Configuration loaded successfully (Claude API enabled)")

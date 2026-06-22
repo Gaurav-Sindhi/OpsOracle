@@ -1,8 +1,10 @@
+"""AWS Manager Service - CloudWatch, Lambda, EC2, X-Ray integration"""
+
 import boto3
 import json
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
-from config import Config
+from backend.config import Config
 from loguru import logger
 
 class AWSManager:
@@ -67,7 +69,6 @@ class AWSManager:
             
             query_id = response['queryId']
             
-            # Wait for query to complete
             import time
             while True:
                 query_response = self.logs.get_query_results(queryId=query_id)
@@ -171,18 +172,15 @@ class AWSManager:
     def scale_ec2_instance(self, instance_id: str, new_instance_type: str) -> Dict:
         """Scale EC2 instance to new type"""
         try:
-            # Stop instance
             self.ec2.stop_instances(InstanceIds=[instance_id])
             logger.info(f"⏸️  EC2 {instance_id} stopped")
             
-            # Change instance type
             self.ec2.modify_instance_attribute(
                 InstanceId=instance_id,
                 InstanceType={'Value': new_instance_type}
             )
             logger.info(f"🔧 EC2 instance type changed to {new_instance_type}")
             
-            # Start instance
             self.ec2.start_instances(InstanceIds=[instance_id])
             logger.info(f"▶️  EC2 {instance_id} started")
             

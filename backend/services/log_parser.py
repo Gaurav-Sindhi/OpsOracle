@@ -1,3 +1,5 @@
+"""Log Parser Service - Parse and structure logs"""
+
 import json
 import re
 from typing import Dict, List, Optional
@@ -52,14 +54,12 @@ class LogParser:
     def _parse_log_line(self, line: str) -> Optional[Dict]:
         """Parse individual log line"""
         try:
-            # Try JSON format first
             try:
                 log_json = json.loads(line)
                 return self._format_log_entry(log_json)
             except json.JSONDecodeError:
                 pass
             
-            # Parse text format
             timestamp = self._extract_timestamp(line)
             severity = self._extract_severity(line)
             message = line
@@ -94,7 +94,7 @@ class LogParser:
         return match.group(0) if match else datetime.now().isoformat()
     
     def _extract_severity(self, line: str) -> str:
-        """Extract severity level from log"""
+        """Extract severity level"""
         line_upper = line.upper()
         if 'ERROR' in line_upper or 'FATAL' in line_upper:
             return 'ERROR'
@@ -105,7 +105,7 @@ class LogParser:
         return 'INFO'
     
     def _classify_error(self, line: str) -> Optional[str]:
-        """Classify error type based on content"""
+        """Classify error type"""
         for error_type, pattern in self.error_patterns.items():
             if re.search(pattern, line, re.IGNORECASE):
                 return error_type
@@ -120,12 +120,10 @@ class LogParser:
         if not error_logs:
             return "No critical errors found"
         
-        # Get most common error type
         error_types = [l['error_type'] for l in error_logs if l['error_type']]
         most_common = max(set(error_types), key=error_types.count) if error_types else 'unknown'
         
-        summary = f"Found {len(error_logs)} errors, mostly {most_common} errors"
-        return summary
+        return f"Found {len(error_logs)} errors, mostly {most_common} errors"
     
     def extract_blast_radius(self, logs: Dict) -> Dict:
         """Identify affected services from logs"""

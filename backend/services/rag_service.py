@@ -1,47 +1,31 @@
+"""RAG Service - Semantic search over incident history"""
+
 import json
-from typing import Dict, List
+from typing import Dict, List, Optional
 from datetime import datetime
 from loguru import logger
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from sentence_transformers import SentenceTransformer
 import numpy as np
 
-
-class RAGEngine:
+class RAGService:
     """RAG-based incident retrieval and analysis"""
-
+    
     def __init__(self):
-        self._model = None
+        self.embeddings_model = SentenceTransformer('all-MiniLM-L6-v2')
         self.incident_memory = []
-
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=500,
             chunk_overlap=50
         )
-
-        logger.info("✅ RAG Engine initialized")
-
-    def get_model(self):
-        """Lazy load embedding model"""
-        if self._model is None:
-            logger.info("🔄 Loading embedding model...")
-            self._model = SentenceTransformer(
-                "all-MiniLM-L6-v2"
-            )
-            logger.info("✅ Embedding model loaded")
-
-        return self._model
-
+        logger.info("✅ RAG Service initialized")
+    
     def add_incident(self, incident: Dict) -> Dict:
-        """Add an incident to the knowledge base"""
+        """Add incident to knowledge base"""
         try:
-            # Create document from incident
             incident_text = self._format_incident_text(incident)
+            embedding = self.embeddings_model.encode(incident_text)
             
-            # Generate embedding
-            embedding = self.get_model().encode(incident_text)
-            
-            # Store incident with embedding
             incident_record = {
                 'id': incident.get('id', str(datetime.now().timestamp())),
                 'incident': incident,
@@ -51,12 +35,8 @@ class RAGEngine:
             }
             
             self.incident_memory.append(incident_record)
-            
-            logger.info(f"✅ Incident added to knowledge base: {incident.get('id')}")
-            return {
-                'status': 'success',
-                'incident_id': incident_record['id']
-            }
+            logger.info(f"✅ Incident added to KB: {incident.get('id')}")
+            return {'status': 'success', 'incident_id': incident_record['id']}
             
         except Exception as e:
             logger.error(f"❌ Error adding incident: {str(e)}")
@@ -69,11 +49,9 @@ class RAGEngine:
                 logger.warning("⚠️  No incidents in knowledge base")
                 return []
             
-            # Generate query embedding
-            query_embedding = self.get_model().encode(query)
-            
-            # Calculate similarity scores
+            query_embedding = self.embeddings_model.encode(query)
             similarities = []
+            
             for incident_record in self.incident_memory:
                 incident_embedding = np.array(incident_record['embedding'])
                 similarity = np.dot(query_embedding, incident_embedding) / (
@@ -85,10 +63,7 @@ class RAGEngine:
                     'text': incident_record['text']
                 })
             
-            # Sort by similarity
             similarities.sort(key=lambda x: x['similarity_score'], reverse=True)
-            
-            # Return top-k
             results = similarities[:top_k]
             logger.info(f"🔍 Found {len(results)} similar incidents")
             return results
@@ -114,7 +89,6 @@ class RAGEngine:
     def generate_incident_context(self, error_type: str, current_logs: str) -> str:
         """Generate context for LLM by searching similar incidents"""
         try:
-            # Search for similar incidents
             similar = self.search_similar_incidents(current_logs, top_k=3)
             
             if not similar:
@@ -135,7 +109,7 @@ class RAGEngine:
             
         except Exception as e:
             logger.error(f"❌ Error generating context: {str(e)}")
-            return "Could not generate historical context"
+            return "Could not generate context"
     
     def batch_add_incidents(self, incidents: List[Dict]) -> Dict:
         """Add multiple incidents at once"""
@@ -155,7 +129,7 @@ class RAGEngine:
             }
             
         except Exception as e:
-            logger.error(f"❌ Error batch adding incidents: {str(e)}")
+            logger.error(f"❌ Error batch adding: {str(e)}")
             return {'status': 'error', 'error': str(e)}
     
     def get_knowledge_base_stats(self) -> Dict:
@@ -184,5 +158,4 @@ class RAGEngine:
             return {'error': str(e)}
 
 # Singleton instance
-def get_model(self):
-    return None
+rag_service = RAGService()

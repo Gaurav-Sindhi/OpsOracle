@@ -1,0 +1,12 @@
+[
+  {
+    "id": "INC-001",
+    "timestamp": "2024-01-15T10:30:00",
+    "error_type": "timeout",
+    "severity": "HIGH",
+    "root_cause": "Lambda memory limit",
+    "fix_applied": "Increased memory to 512MB",
+    "duration_minutes": 15
+  }
+]
+ 
