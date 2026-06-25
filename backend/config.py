@@ -56,7 +56,7 @@ class Config:
     CHUNK_SIZE = 1000
     CHUNK_OVERLAP = 200
     TOP_K_RESULTS = 3
-    
+         
     # Remediation Timeouts
     REMEDIATION_TIMEOUT_SECONDS = 60
     LOG_FETCH_TIMEOUT_SECONDS = 30
