@@ -210,4 +210,4 @@ class AWSManager:
             return {'error': str(e)}
 
 # Singleton instance
-aws_manager = AWSManager()
+aws_manager = AWSManager() 

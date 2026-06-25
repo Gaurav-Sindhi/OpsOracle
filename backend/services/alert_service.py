@@ -14,7 +14,7 @@ class AlertService:
         logger.info("✅ Alert Service initialized")
     
     def ingest_alert(self, alert_data: Dict) -> Dict:
-        """Ingest incoming alert"""
+        """Ingest incoming alert"""  
         try:
             alert_id = f"ALERT-{datetime.now().timestamp()}"
             alert_record = {

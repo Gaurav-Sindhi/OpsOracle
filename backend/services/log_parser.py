@@ -12,7 +12,7 @@ class LogParser:
     def __init__(self):
         self.error_patterns = {
             'timeout': r'(timeout|timed out|deadline exceeded)',
-            'memory': r'(out of memory|memory limit|heap size)',
+            'memory': r'(out of memory|memory limit|heap size)',   
             'connection': r'(connection refused|connection timeout|no route)',
             'permission': r'(permission denied|access denied|forbidden)',
             'resource': r'(resource not found|no such file|not found)',
@@ -26,7 +26,7 @@ class LogParser:
         try:
             lines = raw_logs.split('\n')
             parsed_logs = []
-            
+             
             for line in lines:
                 if not line.strip():
                     continue

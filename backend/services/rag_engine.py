@@ -151,7 +151,7 @@ class RAGEngine:
             return {
                 'status': 'success',
                 'total_added': successful,
-                'total_incidents': len(self.incident_memory)
+                'total_incidents': len(self.incident_memory)  
             }
             
         except Exception as e:

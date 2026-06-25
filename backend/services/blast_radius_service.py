@@ -21,7 +21,7 @@ class BlastRadiusService:
     
     def detect_cascade(self, incident_data: Dict) -> Dict:
         """Detect which services are affected by an incident"""
-        try:
+        try: 
             primary_service = incident_data.get('service', 'unknown')
             directly_affected = [primary_service]
             cascaded_services = self._get_cascaded_services(primary_service)
