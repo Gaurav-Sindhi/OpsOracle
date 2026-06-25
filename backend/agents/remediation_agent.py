@@ -20,7 +20,7 @@ class RemediationAgent:
         permission_level: int = 1
     ) -> Dict:
         """
-        Execute remediation based on permission level.
+        Execute remediation based on permission level.    
         
         Levels:
         1 = Suggest only (no action)

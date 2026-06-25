@@ -218,4 +218,4 @@ Include sections:
             return "Post-mortem generation failed"
  
 # Singleton instance
-llm_agent = LLMAgent()
+llm_agent = LLMAgent()    
