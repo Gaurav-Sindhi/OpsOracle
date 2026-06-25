@@ -17,7 +17,7 @@ st.set_page_config(page_title="OpsOracle", page_icon="🤖", layout="wide")
 
 st.markdown("""
 <style>
-    .main { padding: 2rem; }
+    .main { padding: 2rem; }   
     .metric-card { 
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding: 20px; border-radius: 10px; color: white;
