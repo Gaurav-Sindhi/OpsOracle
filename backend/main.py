@@ -78,4 +78,4 @@ if __name__ == "__main__":
         host=Config.API_HOST,
         port=Config.API_PORT,
         log_level=Config.LOG_LEVEL.lower()
-    )
+    )   
