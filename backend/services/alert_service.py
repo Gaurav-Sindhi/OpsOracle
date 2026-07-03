@@ -22,7 +22,7 @@ class AlertService:
                 'data': alert_data,
                 'received_timestamp': datetime.now().isoformat(),
                 'status': 'ingested'
-            }
+            }   
             
             self.alerts_received.append(alert_record)
             logger.info(f"📬 Alert ingested: {alert_id}")

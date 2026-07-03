@@ -19,7 +19,7 @@ class LogParser:
             'cpu': r'(high cpu|cpu spike|cpu usage)',
             'database': r'(database error|connection pool|query failed)',
         }
-        logger.info("✅ LogParser initialized")
+        logger.info("✅ LogParser initialized")   
     
     def parse_raw_logs(self, raw_logs: str) -> Dict:
         """Parse raw log text into structured format"""

@@ -18,7 +18,7 @@ class BlastRadiusService:
             'elb': ['ec2', 'lambda']
         }
         logger.info("✅ Blast Radius Service initialized")
-    
+                             
     def detect_cascade(self, incident_data: Dict) -> Dict:
         """Detect which services are affected by an incident"""
         try: 

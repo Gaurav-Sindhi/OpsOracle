@@ -20,7 +20,7 @@ class AWSManager:
         self.logs = boto3.client(
             'logs',
             region_name=Config.AWS_REGION,
-            aws_access_key_id=Config.AWS_ACCESS_KEY,
+            aws_access_key_id=Config.AWS_ACCESS_KEY,     
             aws_secret_access_key=Config.AWS_SECRET_KEY
         )
         self.ec2 = boto3.client(

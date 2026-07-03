@@ -201,4 +201,4 @@ elif page == "Settings":
         st.error("Backend is not reachable")
 
     st.divider()
-    st.caption("OpsOracle v1.0.0 — built by Gaurav Sindhi")
+    st.caption("OpsOracle v1.0.0 — built by Gaurav Sindhi")       
