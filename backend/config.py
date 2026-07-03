@@ -15,8 +15,7 @@ class Config:
     AWS_SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
     
     # Claude API (Anthropic) - UPDATED
-    CLAUDE_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-    LLM_MODEL = "claude-3-5-sonnet-20241022"
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY")
     
     # Pinecone (Optional - for production RAG)
     PINECONE_API_KEY = os.getenv("PINECONE_API_KEY", "")
@@ -65,7 +64,7 @@ class Config:
     def validate():
         """Validate that all required configs are set"""
         required = [
-            "CLAUDE_API_KEY",
+            "GROQ_API_KEY",
             "AWS_ACCESS_KEY",
             "AWS_SECRET_KEY",
         ]

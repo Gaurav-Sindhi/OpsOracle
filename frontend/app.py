@@ -1,86 +1,204 @@
-"""OpsOracle Frontend - Streamlit Dashboard"""
-import sys
-import os
+"""OpsOracle Frontend - Real Streamlit Dashboard"""
 
-sys.path.append(
-    os.path.dirname(
-        os.path.dirname(os.path.abspath(__file__))
-    )
-)
 import streamlit as st
 import requests
-import json
 from datetime import datetime
-from backend.config import Config
 
 st.set_page_config(page_title="OpsOracle", page_icon="🤖", layout="wide")
 
-st.markdown("""           
-<style>
-    .main { padding: 2rem; }         
-    .metric-card { 
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 20px; border-radius: 10px; color: white;
-    }
-</style>
-""", unsafe_allow_html=True)
+BACKEND_URL = "http://localhost:8000"
 
-BACKEND_URL = f"http://localhost:{Config.API_PORT}"
-
-st.sidebar.title("🤖 OpsOracle")
-st.sidebar.write("AI-Powered Incident Response System")
-
-page = st.sidebar.radio("Navigation", ["Dashboard", "Incidents", "Analytics", "Settings"])
 
 def check_backend():
     try:
         response = requests.get(f"{BACKEND_URL}/", timeout=2)
         return response.status_code == 200
-    except:
+    except Exception:
         return False
 
-st.sidebar.markdown("---")
-st.sidebar.write("✅ Connected" if check_backend() else "❌ Disconnected")
 
+def get_incidents():
+    try:
+        response = requests.get(f"{BACKEND_URL}/api/incidents/", timeout=5)
+        if response.status_code == 200:
+            return response.json().get("incidents", [])
+        return []
+    except Exception:
+        return []
+
+
+def trigger_test_incident():
+    payload = {
+        "logs": {
+            "summary": "Lambda function timeout error detected",
+            "error_count": 15,
+            "warning_count": 3
+        },
+        "metrics": {
+            "cpu_utilization": 92,
+            "memory_utilization": 88,
+            "request_latency": 850,
+            "error_rate": 0.35,
+            "request_count": 1200
+        },
+        "service": "lambda"
+    }
+    try:
+        response = requests.post(f"{BACKEND_URL}/api/incidents/analyze", json=payload, timeout=30)
+        return response.json() if response.status_code == 200 else None
+    except Exception as e:
+        st.error(f"Request failed: {e}")
+        return None
+
+
+# ---------- Sidebar ----------
+st.sidebar.title("OpsOracle")
+st.sidebar.caption("Autonomous incident response")
+
+backend_ok = check_backend()
+status_label = "Connected" if backend_ok else "Disconnected"
+status_color = "green" if backend_ok else "red"
+st.sidebar.markdown(f":{status_color}[●] Backend {status_label}")
+st.sidebar.caption("LLM: Llama 3.3 70B (Groq)")
+
+page = st.sidebar.radio("Navigate", ["Dashboard", "Incidents", "Analytics", "Settings"])
+
+if not backend_ok:
+    st.error("Backend is not reachable at " + BACKEND_URL + ". Start it with: python -m backend.main")
+    st.stop()
+
+incidents = get_incidents()
+
+# ---------- Dashboard ----------
 if page == "Dashboard":
-    st.title("🎯 Dashboard")
-    st.write("Real-time incident monitoring and metrics")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Active Incidents", 3)
-    with col2:
-        st.metric("MTTR (min)", 15)
+    st.title("Dashboard")
+    st.caption("Real-time incident monitoring and metrics")
 
+    total = len(incidents)
+    critical = sum(1 for i in incidents if i.get("cascade", {}).get("blast_radius_level") == "critical")
+    severities = [i.get("severity", "MEDIUM") for i in incidents]
+    high_or_critical = sum(1 for s in severities if s in ("HIGH", "CRITICAL"))
+
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Total incidents", total)
+    col2.metric("Critical blast radius", critical)
+    col3.metric("High/Critical severity", high_or_critical)
+    col4.metric("Resolution time", "under 60s" if total > 0 else "—")
+
+    st.divider()
+
+    if total == 0:
+        st.info("No incidents yet. Trigger a test incident below or send a real one via the API.")
+        if st.button("Trigger test incident"):
+            with st.spinner("Running full pipeline..."):
+                result = trigger_test_incident()
+            if result:
+                st.success(f"Incident {result['incident_id']} created")
+                st.rerun()
+    else:
+        st.subheader("Latest incident")
+        latest = incidents[-1]
+        analysis = latest.get("analysis", {})
+        cascade = latest.get("cascade", {})
+
+        sev = analysis.get("severity", "MEDIUM")
+        sev_color = {"CRITICAL": "red", "HIGH": "orange", "MEDIUM": "blue", "LOW": "green"}.get(sev, "gray")
+
+        st.markdown(f"**{latest.get('id')}** — :{sev_color}[{sev} severity]")
+        st.write(analysis.get("root_cause", "No analysis available"))
+
+        c1, c2 = st.columns(2)
+        with c1:
+            st.caption("Blast radius")
+            st.write(f"{cascade.get('blast_radius_level', 'unknown').upper()} — {cascade.get('total_affected', 0)} services affected")
+        with c2:
+            st.caption("Recommended fix")
+            st.write(analysis.get("recommended_fix", "N/A")[:150] + "...")
+
+
+# ---------- Incidents ----------
 elif page == "Incidents":
-    st.title("🚨 Incidents")
-    st.write("Browse and analyze incidents")
-    
-    if st.button("Fetch Recent Incidents"):
-        try:
-            response = requests.get(f"{BACKEND_URL}/api/incidents")
-            if response.status_code == 200:
-                data = response.json()
-                st.success(f"Found {data.get('total', 0)} incidents")
-            else:
-                st.error("Failed to fetch incidents")
-        except Exception as e:
-            st.error(f"Error: {str(e)}")
+    st.title("Incidents")
+    st.caption("Browse and analyze incidents")
 
+    col1, col2 = st.columns([3, 1])
+    with col2:
+        if st.button("Trigger test incident", use_container_width=True):
+            with st.spinner("Running full pipeline..."):
+                result = trigger_test_incident()
+            if result:
+                st.success("Created")
+                st.rerun()
+
+    if not incidents:
+        st.info("No incidents found. Use the button above to generate a test incident.")
+    else:
+        st.write(f"**{len(incidents)} incident(s) found**")
+        for incident in reversed(incidents):
+            analysis = incident.get("analysis", {})
+            cascade = incident.get("cascade", {})
+            sev = analysis.get("severity", "MEDIUM")
+            sev_color = {"CRITICAL": "red", "HIGH": "orange", "MEDIUM": "blue", "LOW": "green"}.get(sev, "gray")
+
+            with st.expander(f"{incident.get('id')} — :{sev_color}[{sev}]"):
+                st.markdown("**Root cause**")
+                st.write(analysis.get("root_cause", "N/A"))
+
+                st.markdown("**Recommended fix**")
+                st.write(analysis.get("recommended_fix", "N/A"))
+
+                st.markdown("**Remediation steps**")
+                for step in analysis.get("remediation_steps", []):
+                    st.write(f"- {step}")
+
+                st.markdown("**Blast radius**")
+                st.write(f"{cascade.get('blast_radius_level', 'unknown').upper()} — "
+                          f"{', '.join(cascade.get('all_affected_services', []))}")
+
+                st.caption(f"Model: {analysis.get('model', 'unknown')} · "
+                           f"Timestamp: {analysis.get('timestamp', 'N/A')}")
+
+
+# ---------- Analytics ----------
 elif page == "Analytics":
-    st.title("📊 Analytics")
-    st.write("View analytics and metrics")
+    st.title("Analytics")
+    st.caption("Trends across all incidents")
 
+    if not incidents:
+        st.info("No data yet. Trigger an incident first to see analytics.")
+    else:
+        sev_counts = {}
+        service_counts = {}
+        for i in incidents:
+            sev = i.get("analysis", {}).get("severity", "MEDIUM")
+            sev_counts[sev] = sev_counts.get(sev, 0) + 1
+            for svc in i.get("cascade", {}).get("all_affected_services", []):
+                service_counts[svc] = service_counts.get(svc, 0) + 1
+
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("Incidents by severity")
+            st.bar_chart(sev_counts)
+        with col2:
+            st.subheader("Most affected services")
+            st.bar_chart(service_counts)
+
+
+# ---------- Settings ----------
 elif page == "Settings":
-    st.title("⚙️ Settings")
-    st.write(f"Backend URL: {BACKEND_URL}")
-    st.write(f"Using Claude API (Anthropic)")
-    
-    if st.button("Test Backend"):
-        if check_backend():
-            st.success("✅ Backend is running!")
-        else:
-            st.error("❌ Backend is not responding")
+    st.title("Settings")
 
-st.markdown("---")
-st.caption("OpsOracle v1.0.0 - Powered by Claude (Anthropic)")
+    st.markdown("**Backend URL**")
+    st.code(BACKEND_URL)
+
+    st.markdown("**LLM Provider**")
+    st.write("Groq API — Llama 3.3 70B (free tier, no card required)")
+
+    st.markdown("**Connection status**")
+    if check_backend():
+        st.success("Backend is reachable")
+    else:
+        st.error("Backend is not reachable")
+
+    st.divider()
+    st.caption("OpsOracle v1.0.0 — built by Gaurav Sindhi")

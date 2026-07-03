@@ -123,8 +123,21 @@ def analyze_incident(incident_data: Dict):
             'anomaly': anomaly,
             'analysis': analysis,
             'similar_incidents': similar,
+            'severity': analysis.get('severity', 'MEDIUM'),
             'timestamp': datetime.now().isoformat()
         }
+        
+        # Save incident so it shows up in GET /api/incidents
+        alert_service.triaged_incidents.append(incident)
+        
+        # Also add to RAG knowledge base for future similarity search
+        rag_service.add_incident({
+            'id': incident_id,
+            'error_type': parsed_logs.get('summary', 'unknown'),
+            'root_cause': analysis.get('root_cause', 'unknown'),
+            'service': incident_data.get('service', 'unknown'),
+            'fix_applied': analysis.get('recommended_fix', 'unknown')
+        })
         
         return {
             'status': 'success',
@@ -136,6 +149,7 @@ def analyze_incident(incident_data: Dict):
     except Exception as e:
         logger.error(f"❌ Error analyzing incident: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get("/stats/overview")
 def get_incident_stats():
