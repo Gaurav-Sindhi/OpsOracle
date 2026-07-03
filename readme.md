@@ -1,302 +1,256 @@
-    # 🤖 OpsOracle - AI-Powered Incident Response System
+# OpsOracle — Autonomous AI Incident Response System
 
-**Powered by Claude API (Anthropic)**
-
----
-
-## 📋 Overview
-
-OpsOracle is a professional-grade, AI-powered incident response system that detects, analyzes, remediates, and learns from cloud infrastructure incidents using Claude API for intelligent reasoning and analysis.
-
-**Key Features:**
-- ✅ Real-time anomaly detection (ML)
-- ✅ Multi-service blast radius analysis
-- ✅ Claude AI-powered root cause analysis
-- ✅ Autonomous remediation (3 permission levels)
-- ✅ RAG semantic search over incident history
-- ✅ Auto-generated post-mortem reports
-- ✅ Beautiful Streamlit dashboard
-- ✅ Production-ready FastAPI backend
+> Detects, diagnoses, and remediates cloud infrastructure failures in under 60 seconds.
+> Human engineers take 45 minutes. OpsOracle does it autonomously.
 
 ---
 
-## 🏗️ Architecture
+## What It Does
+
+OpsOracle is a production-grade AI SRE (Site Reliability Engineering) platform. When a cloud service fails, it:
+
+1. **Detects** anomalies in real-time using ML (Isolation Forest)
+2. **Maps blast radius** — identifies all cascading service failures
+3. **Searches memory** — RAG pipeline retrieves similar past incidents
+4. **Analyses** root cause using Groq LLM (Llama 3.3 70B)
+5. **Remediates** automatically with 3 permission levels
+6. **Writes post-mortem** report without human input
+
+**Simulated MTTR: 45 minutes → under 60 seconds.**
+
+---
+
+## Demo
+
+```
+Incident triggered → Anomaly detected (8s) → Blast radius mapped (15s)
+→ RAG search (20s) → Root cause analysis (35s) → Fix applied (47s)
+→ Post-mortem generated (60s)
+```
+
+Test it yourself using the built-in "Trigger test incident" button on the dashboard.
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Backend | FastAPI + Python 3.12 |
+| Frontend | Streamlit |
+| LLM | Groq API — Llama 3.3 70B (free) |
+| Anomaly Detection | Scikit-learn Isolation Forest |
+| RAG Pipeline | LangChain + Sentence Transformers |
+| Vector Search | Cosine similarity (Pinecone-ready) |
+| Cloud | AWS (CloudWatch, Lambda, EC2, X-Ray, RDS) |
+| Embeddings | all-MiniLM-L6-v2 |
+| PDF Reports | ReportLab |
+
+---
+
+## Architecture
 
 ```
 OpsOracle/
 ├── backend/
-│   ├── agents/              # LLM & Remediation agents
-│   ├── services/            # AWS, RAG, Alert services
-│   ├── ml/                  # Anomaly detection
-│   ├── routers/             # FastAPI endpoints
-│   ├── models/              # Pydantic schemas
-│   ├── utils/               # Utilities (PDF, embeddings)
-│   ├── main.py              # FastAPI app
-│   └── config.py            # Configuration
-│
+│   ├── agents/
+│   │   ├── llm_agent.py          # Groq LLM reasoning
+│   │   └── remediation_agent.py  # Autonomous fix execution
+│   ├── services/
+│   │   ├── aws_manager.py        # CloudWatch, Lambda, EC2
+│   │   ├── log_parser.py         # Log parsing + blast radius
+│   │   ├── rag_service.py        # Semantic search pipeline
+│   │   ├── blast_radius_service.py
+│   │   └── alert_service.py      # Incident intake + triage
+│   ├── ml/
+│   │   └── anomaly_detector.py   # Isolation Forest model
+│   ├── routers/
+│   │   ├── incidents.py          # POST /api/incidents/analyze
+│   │   ├── metrics.py
+│   │   ├── remediation.py
+│   │   └── postmortem.py
+│   ├── models/schemas.py
+│   ├── utils/
+│   ├── main.py                   # FastAPI entry point
+│   └── config.py
 ├── frontend/
-│   ├── app.py               # Streamlit dashboard
-│   └── pages/               # Multi-page app
-│
-├── ml_models/               # Trained ML models
-├── data/                    # Sample data
-├── tests/                   # Unit tests
-├── .env                     # Environment variables
-├── requirements.txt         # Dependencies
-└── README.md               # This file
+│   └── app.py                    # Streamlit dashboard
+├── ml_models/
+├── data/
+├── tests/
+├── .env
+└── requirements.txt
 ```
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
-### Step 1: Setup
+### 1. Clone
+
 ```bash
-# Clone/download OpsOracle
+git clone https://github.com/YOUR_USERNAME/OpsOracle.git
 cd OpsOracle
-
-# Create directories
-mkdir -p ml_models data logs tests
-
-# Create ml_models subdirectories
-mkdir -p ml_models
 ```
 
-### Step 2: Install Dependencies
+### 2. Install dependencies
+
 ```bash
-pip install -r requirements_CLAUDE.txt
+pip install -r requirements.txt
 ```
 
-### Step 3: Configure Environment
-```bash
-# Copy .env template
-cp .env_CLAUDE .env
+### 3. Configure environment
 
-# Edit .env with your keys:
-# - CLAUDE_API_KEY from console.anthropic.com
-# - AWS credentials from AWS Console
-# - AWS_REGION (default: us-east-1)
+```bash
+cp .env.example .env
 ```
 
-### Step 4: Validate Configuration
-```bash
-python backend/config.py
+Edit `.env` and add:
+
+```env
+GROQ_API_KEY=gsk_your_key_from_console.groq.com
+AWS_ACCESS_KEY_ID=your_aws_key
+AWS_SECRET_ACCESS_KEY=your_aws_secret
+AWS_REGION=us-east-1
 ```
 
-Expected output: `✅ Configuration loaded successfully (Claude API enabled)`
+Get your **free** Groq API key (no credit card) at: https://console.groq.com/keys
 
-### Step 5: Run Backend
+### 4. Run backend
+
 ```bash
-# Terminal 1
 python -m backend.main
 ```
 
-Backend starts on: `http://localhost:8000`
+Backend runs at: `http://localhost:8000`
+Interactive API docs: `http://localhost:8000/docs`
 
-### Step 6: Run Frontend
+### 5. Run frontend
+
 ```bash
-# Terminal 2
 streamlit run frontend/app.py
 ```
 
-Frontend opens at: `http://localhost:8501`
+Dashboard opens at: `http://localhost:8501`
 
 ---
 
-## 📊 API Endpoints
+## Test the Full Pipeline
 
-### Health & Status
-- `GET /` — Health check
+Go to `http://localhost:8000/docs`, find `POST /api/incidents/analyze` and send:
+
+```json
+{
+  "logs": {
+    "summary": "Lambda function timeout error detected",
+    "error_count": 15,
+    "warning_count": 3
+  },
+  "metrics": {
+    "cpu_utilization": 92,
+    "memory_utilization": 88,
+    "request_latency": 850,
+    "error_rate": 0.35,
+    "request_count": 1200
+  },
+  "service": "lambda"
+}
+```
+
+Or click **"Trigger test incident"** directly from the Streamlit dashboard.
+
+---
+
+## API Endpoints
 
 ### Incidents
-- `GET /api/incidents` — List incidents
-- `GET /api/incidents/{id}` — Get specific incident
-- `POST /api/incidents` — Create incident
-- `POST /api/incidents/analyze` — Full analysis pipeline
-
-### Metrics
-- `GET /api/metrics/all` — Get all metrics
-- `GET /api/metrics/{namespace}/{metric_name}` — Get specific metric
-- `GET /api/metrics/xray/traces` — Get X-Ray traces
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/incidents/` | List all incidents |
+| POST | `/api/incidents/analyze` | Full pipeline — analyze and store |
+| GET | `/api/incidents/stats/overview` | Stats summary |
 
 ### Remediation
-- `POST /api/remediation/execute` — Execute fix
-- `GET /api/remediation/history` — Get history
-- `GET /api/remediation/cascade/{incident_id}` — Get cascade plan
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/remediation/execute` | Execute fix |
+| GET | `/api/remediation/history` | Remediation history |
 
 ### Post-Mortem
-- `POST /api/postmortem/generate` — Generate postmortem
-- `GET /api/postmortem/{id}` — Get postmortem
-- `POST /api/postmortem/{id}/export/pdf` — Export as PDF
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/postmortem/generate` | Generate report |
+| GET | `/api/postmortem/{id}` | Get report |
 
 ---
 
-## 🧠 Claude API Integration
+## Key Features
 
-OpsOracle uses Claude API for intelligent analysis:
+### Multi-service blast radius detection
+When Lambda fails, OpsOracle automatically maps the full cascade — API Gateway, RDS, EC2, DynamoDB — and prioritizes which service to fix first.
 
-### Incident Analysis
-Claude analyzes logs, metrics, and historical incidents to:
-- ✅ Identify root causes
-- ✅ Suggest specific fixes
-- ✅ Assess severity (CRITICAL/HIGH/MEDIUM/LOW)
-- ✅ Generate step-by-step remediation
-- ✅ Write professional post-mortems
+### RAG-powered incident memory
+Every incident is embedded and stored. New incidents are matched against historical ones, giving the LLM context from your own infrastructure history — not generic advice.
 
-### Configuration
-All Claude calls use **claude-3-5-sonnet-20241022** model with optimized prompts for infrastructure analysis.
+### Isolation Forest anomaly detection
+Detects abnormal server metrics (CPU, memory, latency, error rate) before they escalate. Falls back to threshold-based detection if model is not yet trained.
 
----
+### Autonomous remediation (3 levels)
+- **Level 1** — Suggest only (show what fix would be applied)
+- **Level 2** — Ask confirmation, then execute
+- **Level 3** — Fully autonomous, no human needed
 
-## 🔧 Core Components
-
-### 1. **Agents** (`backend/agents/`)
-- `llm_agent.py` — Claude-powered analysis
-- `remediation_agent.py` — Autonomous fixes
-
-### 2. **Services** (`backend/services/`)
-- `aws_manager.py` — AWS CloudWatch, Lambda, EC2
-- `log_parser.py` — Parse & structure logs
-- `rag_service.py` — Semantic search
-- `blast_radius_service.py` — Multi-service detection
-- `alert_service.py` — Alert ingestion & triage
-
-### 3. **ML** (`backend/ml/`)
-- `anomaly_detector.py` — Isolation Forest model
-
-### 4. **Routers** (`backend/routers/`)
-- `incidents.py` — Incident endpoints
-- `metrics.py` — Metrics endpoints
-- `remediation.py` — Remediation endpoints
-- `postmortem.py` — Post-mortem endpoints
+### Auto post-mortem generation
+After every incident, the LLM writes a structured post-mortem with timeline, root cause, impact, resolution, lessons learned, and action items.
 
 ---
 
-## 📝 Sample Usage
+## Environment Variables
 
-### Test Anomaly Detection
-```bash
-curl -X POST http://localhost:8000/api/anomaly/predict \
-  -H "Content-Type: application/json" \
-  -d '{
-    "cpu_utilization": 95,
-    "memory_utilization": 92,
-    "request_latency": 450,
-    "error_rate": 0.15,
-    "request_count": 1200
-  }'
-```
-
-### Test Incident Analysis
-```bash
-curl -X POST http://localhost:8000/api/incidents/analyze \
-  -H "Content-Type: application/json" \
-  -d '{
-    "logs": {"summary": "Lambda timeout", "error_count": 3},
-    "metrics": {"cpu": 85, "memory": 90},
-    "service": "lambda"
-  }'
-```
+| Variable | Required | Description |
+|---|---|---|
+| `GROQ_API_KEY` | Yes | Free from console.groq.com/keys |
+| `AWS_ACCESS_KEY_ID` | Yes | AWS IAM credentials |
+| `AWS_SECRET_ACCESS_KEY` | Yes | AWS IAM credentials |
+| `AWS_REGION` | No | Default: us-east-1 |
+| `PINECONE_API_KEY` | No | For production vector storage |
+| `FASTAPI_PORT` | No | Default: 8000 |
+| `STREAMLIT_PORT` | No | Default: 8501 |
 
 ---
 
-## 🏆 Key Differentiators
+## Production Upgrade Path
 
-| Feature | OpsOracle |
-|---------|-----------|
-| **LLM** | Claude API (Anthropic) |
-| **Anomaly Detection** | Isolation Forest ML |
-| **RAG Pipeline** | Semantic search with embeddings |
-| **Blast Radius** | Multi-service cascade detection |
-| **Autonomy Levels** | 3 permission levels |
-| **Auto Post-Mortems** | Claude-generated narratives |
-| **Database** | DynamoDB-ready |
-| **Deployment** | AWS-native |
+| Component | Current (demo) | Production |
+|---|---|---|
+| Incident storage | In-memory | AWS DynamoDB |
+| Vector store | In-memory cosine similarity | Pinecone |
+| LLM | Groq (free) | Anthropic Claude API |
+| Logs | CloudWatch (mocked) | Real CloudWatch integration |
 
 ---
 
-## 📚 File Organization
+## Security
 
-### Backend Files
-- `backend_main.py` → `backend/main.py`
-- `backend_config_CLAUDE.py` → `backend/config.py`
-- `agents_llm_agent_CLAUDE.py` → `backend/agents/llm_agent.py`
-- `agents_remediation_agent.py` → `backend/agents/remediation_agent.py`
-- All services → `backend/services/`
-- All routers → `backend/routers/`
-- `ml_anomaly_detector.py` → `backend/ml/anomaly_detector.py`
-
-### Frontend Files
-- `frontend_app.py` → `frontend/app.py`
-
-### Config Files
-- `.env_CLAUDE` → `.env`
-- `requirements_CLAUDE.txt` → `requirements.txt`
+- All API keys stored in `.env` — never committed to git
+- `.gitignore` excludes `.env`, `venv/`, `__pycache__/`, `*.pkl`
+- AWS credentials via environment variables only
 
 ---
 
-## 🔐 Security
+## Built By
 
-- All API keys in `.env` (never commit)
-- AWS credentials via environment
-- Claude API key in `.env`
-- No sensitive data in logs
+**Gaurav Sindhi** — B.Tech AI/ML, R.C. Patel Institute of Technology
 
----
-
-## 📈 Production Deployment
-
-### Database
-Replace in-memory stores with:
-- DynamoDB for incidents
-- Pinecone for RAG vectors
-- CloudWatch Logs Insights for logs
-
-### Monitoring
-- CloudWatch alarms
-- X-Ray tracing
-- Application insights
-
-### Scaling
-- Lambda auto-scaling
-- RDS multi-AZ
-- CloudFront CDN
+- LinkedIn: [/gaurav-sindhi](https://linkedin.com/in/gaurav-sindhi)
+- GitHub: [/GauravSindhi](https://github.com/GauravSindhi)
 
 ---
 
-## 🧪 Testing
+## License
 
-```bash
-# Run tests
-python tests/test_anomaly.py
-python tests/test_rag.py
-python tests/test_agents.py
-
-# Check backend
-curl http://localhost:8000/
-
-# Check frontend
-curl http://localhost:8501/
-```
+Built for portfolio and educational purposes.
 
 ---
 
-## 📞 Support & Resources
-
-- **Claude API Docs:** https://docs.anthropic.com
-- **FastAPI Docs:** https://fastapi.tiangolo.com/
-- **Streamlit Docs:** https://docs.streamlit.io/
-- **AWS SDK:** https://boto3.amazonaws.com/
-
----
-
-## 📄 License
-
-Built for portfolio/educational purposes.
-
----
-
-**Version:** 1.0.0  
-**Status:** Production Ready  
-**LLM:** Claude API (Anthropic)  
-**Updated:** January 2026
+*OpsOracle v1.1.0 — LLM: Groq Llama 3.3 70B — Updated: July 2026*
