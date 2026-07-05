@@ -158,6 +158,56 @@ elif page == "Incidents":
                 st.caption(f"Model: {analysis.get('model', 'unknown')} · "
                            f"Timestamp: {analysis.get('timestamp', 'N/A')}")
 
+    st.markdown("---")
+    st.subheader("🔴 Real AWS Incidents")
+    st.caption("Triggers actual Lambda failure → reads real CloudWatch logs → full pipeline")
+
+    col_a, col_b, col_c = st.columns(3)
+
+    with col_a:
+        if st.button("⚡ Lambda Timeout", use_container_width=True):
+            with st.spinner("Triggering real AWS Lambda... reading CloudWatch..."):
+                r = requests.post(
+                    f"{BACKEND_URL}/api/incidents/trigger-aws-incident",
+                    params={"failure_type": "timeout"},
+                    timeout=60
+                )
+                if r.status_code == 200:
+                    data = r.json()
+                    st.success(f"Real AWS incident: {data['incident_id']}")
+                    st.rerun()
+                else:
+                    st.error(f"Failed: {r.text}")
+
+    with col_b:
+        if st.button("💾 Memory Error", use_container_width=True):
+            with st.spinner("Triggering real AWS Lambda... reading CloudWatch..."):
+                r = requests.post(
+                    f"{BACKEND_URL}/api/incidents/trigger-aws-incident",
+                    params={"failure_type": "memory"},
+                    timeout=60
+                )
+                if r.status_code == 200:
+                    data = r.json()
+                    st.success(f"Real AWS incident: {data['incident_id']}")
+                    st.rerun()
+                else:
+                    st.error(f"Failed: {r.text}")
+
+    with col_c:
+        if st.button("🔌 DB Connection", use_container_width=True):
+            with st.spinner("Triggering real AWS Lambda... reading CloudWatch..."):
+                r = requests.post(
+                    f"{BACKEND_URL}/api/incidents/trigger-aws-incident",
+                    params={"failure_type": "connection"},
+                    timeout=60
+                )
+                if r.status_code == 200:
+                    data = r.json()
+                    st.success(f"Real AWS incident: {data['incident_id']}")
+                    st.rerun()
+                else:
+                    st.error(f"Failed: {r.text}")
 
 # ---------- Analytics ----------
 elif page == "Analytics":

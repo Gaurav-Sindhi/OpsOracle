@@ -150,7 +150,92 @@ def analyze_incident(incident_data: Dict):
         logger.error(f"❌ Error analyzing incident: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-
+    @router.post("/trigger-aws-incident")
+    def trigger_real_aws_incident(
+        failure_type: str = "timeout",
+        function_name: str = "opsoracle-demo-failure"
+    ):
+        """Trigger a REAL AWS Lambda failure and run full OpsOracle pipeline"""
+        try:
+            logger.info(f"🔴 Triggering REAL AWS incident: {failure_type}")
+            
+            # Step 1: Trigger Lambda and get real logs
+            real_logs = aws_manager.trigger_lambda_and_get_logs(
+                function_name=function_name,
+                failure_type=failure_type
+            )
+            
+            # Step 2: Get real CloudWatch metrics
+            real_metrics = aws_manager.get_real_metrics(function_name)
+            
+            # Step 3: Parse logs
+            parsed_logs = log_parser.parse_raw_logs(
+                real_logs.get('raw_logs', real_logs.get('summary', ''))
+            )
+            parsed_logs['summary'] = real_logs.get('summary', 'Lambda error detected')
+            parsed_logs['error_count'] = real_logs.get('error_count', 1)
+            
+            # Step 4: Blast radius
+            blast_radius = log_parser.extract_blast_radius(parsed_logs)
+            cascade = blast_radius_service.detect_cascade({'service': 'lambda'})
+            
+            # Step 5: Anomaly detection
+            anomaly = anomaly_detector.predict(real_metrics)
+            
+            # Step 6: RAG search
+            similar = rag_service.search_similar_incidents(
+                real_logs.get('summary', ''), top_k=3
+            )
+            
+            # Step 7: LLM analysis
+            analysis = llm_agent.analyze_incident(
+                parsed_logs, real_metrics, blast_radius, similar
+            )
+            
+            # Step 8: Store incident
+            incident_id = f"AWS-INC-{datetime.now().timestamp()}"
+            incident = {
+                'id': incident_id,
+                'source': 'REAL AWS',
+                'function_name': function_name,
+                'failure_type': failure_type,
+                'parsed_logs': parsed_logs,
+                'metrics': real_metrics,
+                'blast_radius': blast_radius,
+                'cascade': cascade,
+                'anomaly': anomaly,
+                'analysis': analysis,
+                'similar_incidents': similar,
+                'severity': analysis.get('severity', 'HIGH'),
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            alert_service.triaged_incidents.append(incident)
+            rag_service.add_incident({
+                'id': incident_id,
+                'error_type': failure_type,
+                'root_cause': analysis.get('root_cause', ''),
+                'service': 'lambda',
+                'fix_applied': analysis.get('recommended_fix', '')
+            })
+            
+            return {
+                'status': 'success',
+                'source': 'REAL AWS CloudWatch',
+                'incident_id': incident_id,
+                'function_triggered': function_name,
+                'failure_type': failure_type,
+                'real_logs_fetched': True,
+                'log_lines': real_logs.get('error_count', 0),
+                'analysis': analysis,
+                'cascade': cascade,
+                'metrics': real_metrics
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ AWS incident trigger failed: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+        
 @router.get("/stats/overview")
 def get_incident_stats():
     """Get incident statistics"""
