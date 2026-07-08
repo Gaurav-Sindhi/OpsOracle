@@ -161,22 +161,36 @@ Steps:"""
     def write_postmortem(self, incident_data: Dict) -> str:
         """Generate post-mortem narrative"""
         try:
-            prompt = f"""Generate a professional post-mortem report for this incident:
+            from datetime import datetime
+            ts = incident_data.get('timestamp', datetime.now().isoformat())
+            try:
+                dt = datetime.fromisoformat(ts)
+                formatted_time = dt.strftime("%d %B %Y at %H:%M:%S UTC")
+            except Exception:
+                formatted_time = ts
 
-Incident ID: {incident_data.get('id', 'Unknown')}
-Duration: {incident_data.get('duration_minutes', 0)} minutes
-Root Cause: {incident_data.get('root_cause', 'Unknown')}
-Services Affected: {', '.join(incident_data.get('affected_services', []))}
-Fix Applied: {incident_data.get('fix_applied', 'Unknown')}
+            affected = ', '.join(incident_data.get('affected_services', [])) or 'Lambda, API Gateway, RDS'
 
-Include sections:
-1. What Happened
-2. Timeline
-3. Root Cause
-4. Impact
-5. Resolution
-6. Lessons Learned
-7. Action Items"""
+            prompt = f"""Write a professional post-mortem report for this incident. Use the EXACT values provided — do not use placeholders like [Date] or [Time].
+
+    Incident ID: {incident_data.get('id', 'Unknown')}
+    Detection Time: {formatted_time}
+    Duration: {incident_data.get('duration_minutes', 45)} minutes
+    Severity: {incident_data.get('severity', 'MEDIUM')}
+    Service: {incident_data.get('service', 'lambda')}
+    Root Cause: {incident_data.get('root_cause', 'Unknown')}
+    Affected Services: {affected}
+    Fix Applied: {incident_data.get('fix_applied', 'Unknown')}
+
+    Write the following 7 sections using the exact values above:
+    1. What Happened
+    2. Timeline (use {formatted_time} as the detection time)
+    3. Root Cause
+    4. Impact (mention {affected})
+    5. Resolution
+    6. Lessons Learned
+    7. Action Items"""
+
             return self._call_groq(prompt, max_tokens=1500)
         except Exception as e:
             logger.error(f"❌ Error writing postmortem: {str(e)}")
