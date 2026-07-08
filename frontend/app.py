@@ -1,360 +1,72 @@
-"""OpsOracle — Autonomous Incident Response Dashboard"""
+"""OpsOracle — Autonomous Incident Response Dashboard v1.2"""
 
 import streamlit as st
 import requests
 from datetime import datetime
 
-# ── Page config ──────────────────────────────────────────────────────────────
-st.set_page_config(
-    page_title="OpsOracle",
-    page_icon="🔴",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="OpsOracle", page_icon="🔴", layout="wide", initial_sidebar_state="expanded")
 
 BACKEND_URL = "http://localhost:8000"
 
-# ── Design system ─────────────────────────────────────────────────────────────
+# ── CSS ───────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap');
-
-/* ── Reset & base ── */
 *, *::before, *::after { box-sizing: border-box; }
-
-html, body, [data-testid="stAppViewContainer"] {
-    background: #080B10 !important;
-    color: #C8D0DC !important;
-    font-family: 'Inter', sans-serif !important;
-}
-
-[data-testid="stSidebar"] {
-    background: #0C1017 !important;
-    border-right: 1px solid #1C2333 !important;
-}
-
+html, body, [data-testid="stAppViewContainer"] { background: #080B10 !important; color: #C8D0DC !important; font-family: 'Inter', sans-serif !important; }
+[data-testid="stSidebar"] { background: #0C1017 !important; border-right: 1px solid #1C2333 !important; }
 [data-testid="stSidebar"] * { color: #C8D0DC !important; }
-
-/* Hide default Streamlit chrome */
 #MainMenu, footer, header { visibility: hidden; }
-[data-testid="stDecoration"] { display: none; }
 .block-container { padding: 1.5rem 2rem 3rem !important; max-width: 1400px !important; }
-
-/* ── Typography ── */
-h1, h2, h3, h4 { font-family: 'Inter', sans-serif !important; letter-spacing: -0.02em; }
-
-/* ── Cards ── */
-.oc-card {
-    background: #0C1017;
-    border: 1px solid #1C2333;
-    border-radius: 8px;
-    padding: 1.25rem 1.5rem;
-    margin-bottom: 1rem;
-}
-
-.oc-card-glow {
-    background: #0C1017;
-    border: 1px solid #1C2333;
-    border-radius: 8px;
-    padding: 1.25rem 1.5rem;
-    margin-bottom: 1rem;
-    box-shadow: 0 0 0 1px #1C2333, 0 4px 24px rgba(255,59,48,0.06);
-}
-
-/* ── Metric cards ── */
-.metric-row {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-    margin-bottom: 1.5rem;
-}
-
-.metric-card {
-    background: #0C1017;
-    border: 1px solid #1C2333;
-    border-radius: 8px;
-    padding: 1.1rem 1.3rem;
-}
-
-.metric-card .label {
-    font-size: 11px;
-    font-family: 'IBM Plex Mono', monospace;
-    color: #4A5568;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin-bottom: 8px;
-}
-
-.metric-card .value {
-    font-size: 28px;
-    font-weight: 600;
-    letter-spacing: -0.03em;
-    line-height: 1;
-    color: #E8EDF5;
-}
-
-.metric-card .sub {
-    font-size: 11px;
-    color: #4A5568;
-    margin-top: 6px;
-    font-family: 'IBM Plex Mono', monospace;
-}
-
-.metric-card.danger  { border-color: rgba(255,59,48,0.35); }
-.metric-card.warning { border-color: rgba(255,165,0,0.35); }
-.metric-card.success { border-color: rgba(52,199,89,0.35); }
-.metric-card.info    { border-color: rgba(0,122,255,0.35); }
-
-.metric-card.danger  .value { color: #FF3B30; }
-.metric-card.warning .value { color: #FF9500; }
-.metric-card.success .value { color: #34C759; }
-.metric-card.info    .value { color: #007AFF; }
-
-/* ── Status badges ── */
-.badge {
-    display: inline-block;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    font-weight: 500;
-    padding: 3px 8px;
-    border-radius: 4px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-}
-
-.badge-critical { background: rgba(255,59,48,0.15);  color: #FF3B30; border: 1px solid rgba(255,59,48,0.3); }
-.badge-high     { background: rgba(255,149,0,0.15);  color: #FF9500; border: 1px solid rgba(255,149,0,0.3); }
-.badge-medium   { background: rgba(0,122,255,0.15);  color: #007AFF; border: 1px solid rgba(0,122,255,0.3); }
-.badge-low      { background: rgba(52,199,89,0.15);  color: #34C759; border: 1px solid rgba(52,199,89,0.3); }
-.badge-aws      { background: rgba(255,153,0,0.12);  color: #FF9900; border: 1px solid rgba(255,153,0,0.3); }
-
-/* ── Incident cards ── */
-.incident-card {
-    background: #0C1017;
-    border: 1px solid #1C2333;
-    border-radius: 8px;
-    padding: 1rem 1.25rem;
-    margin-bottom: 10px;
-    transition: border-color 0.15s;
-}
-
-.incident-card:hover { border-color: #2D3748; }
-
-.incident-card.aws-source {
-    border-left: 3px solid #FF9900;
-}
-
-.incident-card.manual-source {
-    border-left: 3px solid #007AFF;
-}
-
-.incident-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-}
-
-.incident-id {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 12px;
-    color: #E8EDF5;
-    font-weight: 500;
-}
-
-.incident-time {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    color: #4A5568;
-}
-
-.incident-cause {
-    font-size: 13px;
-    color: #8A95A5;
-    line-height: 1.5;
-    margin-bottom: 10px;
-}
-
-.incident-footer {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    align-items: center;
-}
-
-.tag {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    color: #4A5568;
-    background: #141920;
-    border: 1px solid #1C2333;
-    border-radius: 4px;
-    padding: 2px 7px;
-}
-
-/* ── Live indicator ── */
-.live-dot {
-    display: inline-block;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #34C759;
-    margin-right: 6px;
-    animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0.3; }
-}
-
-/* ── Section headers ── */
-.section-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 1rem;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #1C2333;
-}
-
-.section-title {
-    font-size: 12px;
-    font-family: 'IBM Plex Mono', monospace;
-    color: #4A5568;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-}
-
-/* ── Buttons ── */
-.stButton > button {
-    background: #141920 !important;
-    color: #C8D0DC !important;
-    border: 1px solid #1C2333 !important;
-    border-radius: 6px !important;
-    font-family: 'IBM Plex Mono', monospace !important;
-    font-size: 12px !important;
-    padding: 0.4rem 1rem !important;
-    transition: all 0.15s !important;
-}
-
-.stButton > button:hover {
-    background: #1C2333 !important;
-    border-color: #2D3748 !important;
-    color: #E8EDF5 !important;
-}
-
-/* AWS trigger buttons */
-.aws-btn > button {
-    border-color: rgba(255,153,0,0.35) !important;
-    color: #FF9900 !important;
-}
-
-/* ── Expander ── */
-[data-testid="stExpander"] {
-    background: #0C1017 !important;
-    border: 1px solid #1C2333 !important;
-    border-radius: 8px !important;
-    margin-bottom: 8px !important;
-}
-
-[data-testid="stExpander"] summary {
-    font-family: 'IBM Plex Mono', monospace !important;
-    font-size: 12px !important;
-    color: #C8D0DC !important;
-}
-
-/* ── Divider ── */
-hr { border-color: #1C2333 !important; }
-
-/* ── Code blocks ── */
-code, pre {
-    font-family: 'IBM Plex Mono', monospace !important;
-    background: #141920 !important;
-    color: #7DD3FC !important;
-    border-radius: 4px !important;
-    font-size: 12px !important;
-}
-
-/* ── Selectbox / radio ── */
-[data-testid="stRadio"] label { font-size: 13px !important; }
-
-/* ── Charts ── */
-[data-testid="stVegaLiteChart"] { border-radius: 8px; overflow: hidden; }
-
-/* ── Sidebar nav ── */
-.sidebar-logo {
-    font-size: 18px;
-    font-weight: 600;
-    letter-spacing: -0.03em;
-    color: #E8EDF5 !important;
-    margin-bottom: 4px;
-}
-
-.sidebar-sub {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    color: #4A5568;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin-bottom: 1.5rem;
-}
-
-/* ── Timeline ── */
-.timeline-item {
-    display: flex;
-    gap: 12px;
-    padding: 8px 0;
-    border-bottom: 1px solid #1C2333;
-    align-items: flex-start;
-}
-
-.timeline-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    margin-top: 4px;
-    flex-shrink: 0;
-}
-
-.timeline-content { flex: 1; }
-
-.timeline-title {
-    font-size: 13px;
-    color: #C8D0DC;
-    font-weight: 500;
-    margin-bottom: 2px;
-}
-
-.timeline-meta {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    color: #4A5568;
-}
-
-/* ── Empty state ── */
-.empty-state {
-    text-align: center;
-    padding: 3rem 1rem;
-    color: #4A5568;
-}
-
-.empty-state .icon { font-size: 2rem; margin-bottom: 0.75rem; }
-.empty-state .title { font-size: 14px; color: #8A95A5; margin-bottom: 6px; }
-.empty-state .desc { font-size: 12px; font-family: 'IBM Plex Mono', monospace; }
+h1, h2, h3 { font-family: 'Inter', sans-serif !important; letter-spacing: -0.02em; }
+.oc-card { background: #0C1017; border: 1px solid #1C2333; border-radius: 8px; padding: 1.25rem 1.5rem; margin-bottom: 1rem; }
+.oc-glow { background: #0C1017; border: 1px solid #1C2333; border-radius: 8px; padding: 1.25rem 1.5rem; margin-bottom: 1rem; box-shadow: 0 4px 24px rgba(255,59,48,0.06); }
+.metric-card { background: #0C1017; border: 1px solid #1C2333; border-radius: 8px; padding: 1.1rem 1.3rem; }
+.metric-card .lbl { font-size: 10px; font-family: 'IBM Plex Mono',monospace; color: #4A5568; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
+.metric-card .val { font-size: 28px; font-weight: 600; letter-spacing: -0.03em; line-height: 1; color: #E8EDF5; }
+.metric-card .sub { font-size: 10px; color: #4A5568; margin-top: 6px; font-family: 'IBM Plex Mono',monospace; }
+.metric-card.danger { border-color: rgba(255,59,48,0.35); } .metric-card.danger .val { color: #FF3B30; }
+.metric-card.warning { border-color: rgba(255,149,0,0.35); } .metric-card.warning .val { color: #FF9500; }
+.metric-card.success { border-color: rgba(52,199,89,0.35); } .metric-card.success .val { color: #34C759; }
+.metric-card.info { border-color: rgba(0,122,255,0.35); } .metric-card.info .val { color: #007AFF; }
+.badge { display:inline-block; font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:500; padding:3px 8px; border-radius:4px; letter-spacing:0.06em; text-transform:uppercase; }
+.badge-critical { background:rgba(255,59,48,0.15); color:#FF3B30; border:1px solid rgba(255,59,48,0.3); }
+.badge-high { background:rgba(255,149,0,0.15); color:#FF9500; border:1px solid rgba(255,149,0,0.3); }
+.badge-medium { background:rgba(0,122,255,0.15); color:#007AFF; border:1px solid rgba(0,122,255,0.3); }
+.badge-low { background:rgba(52,199,89,0.15); color:#34C759; border:1px solid rgba(52,199,89,0.3); }
+.badge-aws { background:rgba(255,153,0,0.12); color:#FF9900; border:1px solid rgba(255,153,0,0.3); }
+.inc-card { background:#0C1017; border:1px solid #1C2333; border-radius:8px; padding:1rem 1.25rem; margin-bottom:10px; }
+.inc-card.aws-src { border-left:3px solid #FF9900; }
+.inc-card.manual-src { border-left:3px solid #007AFF; }
+.inc-hdr { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.inc-id { font-family:'IBM Plex Mono',monospace; font-size:12px; color:#E8EDF5; font-weight:500; }
+.inc-time { font-family:'IBM Plex Mono',monospace; font-size:11px; color:#4A5568; }
+.inc-cause { font-size:13px; color:#8A95A5; line-height:1.5; margin-bottom:10px; }
+.inc-footer { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.tag { font-family:'IBM Plex Mono',monospace; font-size:10px; color:#4A5568; background:#141920; border:1px solid #1C2333; border-radius:4px; padding:2px 7px; }
+.live-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:#34C759; margin-right:6px; animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.sec-title { font-size:11px; font-family:'IBM Plex Mono',monospace; color:#4A5568; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:0.75rem; padding-bottom:6px; border-bottom:1px solid #1C2333; }
+.stButton > button { background:#141920 !important; color:#C8D0DC !important; border:1px solid #1C2333 !important; border-radius:6px !important; font-family:'IBM Plex Mono',monospace !important; font-size:12px !important; transition:all 0.15s !important; }
+.stButton > button:hover { background:#1C2333 !important; border-color:#2D3748 !important; color:#E8EDF5 !important; }
+[data-testid="stExpander"] { background:#0C1017 !important; border:1px solid #1C2333 !important; border-radius:8px !important; margin-bottom:8px !important; }
+hr { border-color:#1C2333 !important; }
+code, pre { font-family:'IBM Plex Mono',monospace !important; background:#141920 !important; color:#7DD3FC !important; border-radius:4px !important; font-size:12px !important; }
+.anomaly-positive { background:rgba(255,59,48,0.1); border:1px solid rgba(255,59,48,0.3); border-radius:6px; padding:8px 12px; font-family:'IBM Plex Mono',monospace; font-size:11px; color:#FF3B30; }
+.anomaly-negative { background:rgba(52,199,89,0.1); border:1px solid rgba(52,199,89,0.3); border-radius:6px; padding:8px 12px; font-family:'IBM Plex Mono',monospace; font-size:11px; color:#34C759; }
+.rag-item { background:#141920; border:1px solid #1C2333; border-radius:6px; padding:8px 12px; margin-bottom:6px; font-size:12px; color:#8A95A5; }
+.rag-score { font-family:'IBM Plex Mono',monospace; font-size:10px; color:#4A5568; margin-bottom:3px; }
+.postmortem-box { background:#0D1117; border:1px solid #1C2333; border-radius:8px; padding:1.25rem; font-size:13px; color:#C8D0DC; line-height:1.8; white-space:pre-wrap; font-family:'Inter',sans-serif; max-height:500px; overflow-y:auto; }
 </style>
 """, unsafe_allow_html=True)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
-
 def check_backend():
     try:
-        r = requests.get(f"{BACKEND_URL}/", timeout=2)
-        return r.status_code == 200
+        return requests.get(f"{BACKEND_URL}/", timeout=2).status_code == 200
     except Exception:
         return False
-
 
 def get_incidents():
     try:
@@ -363,61 +75,47 @@ def get_incidents():
     except Exception:
         return []
 
-
-def trigger_test(failure_type="timeout"):
-    payload = {
-        "logs": {
-            "summary": f"Lambda {failure_type} error detected",
-            "error_count": 15,
-            "warning_count": 3
-        },
-        "metrics": {
-            "cpu_utilization": 92,
-            "memory_utilization": 88,
-            "request_latency": 850,
-            "error_rate": 0.35,
-            "request_count": 1200
-        },
-        "service": "lambda"
-    }
+def trigger_test():
+    payload = {"logs": {"summary": "Lambda timeout error detected", "error_count": 15, "warning_count": 3},
+               "metrics": {"cpu_utilization": 92, "memory_utilization": 88, "request_latency": 850, "error_rate": 0.35, "request_count": 1200},
+               "service": "lambda"}
     try:
-        r = requests.post(f"{BACKEND_URL}/api/incidents/analyze", json=payload, timeout=30)
+        r = requests.post(f"{BACKEND_URL}/api/incidents/analyze", json=payload, timeout=60)
         return r.json() if r.status_code == 200 else None
     except Exception:
         return None
-
 
 def trigger_aws(failure_type="timeout"):
     try:
-        r = requests.post(
-            f"{BACKEND_URL}/api/incidents/trigger-aws-incident",
-            params={"failure_type": failure_type},
-            timeout=60
-        )
+        r = requests.post(f"{BACKEND_URL}/api/incidents/trigger-aws-incident",
+                         params={"failure_type": failure_type}, timeout=60)
         return r.json() if r.status_code == 200 else None
     except Exception:
         return None
 
+def get_postmortem_pdf(incident_id):
+    try:
+        r = requests.get(f"{BACKEND_URL}/api/incidents/{incident_id}/postmortem/pdf", timeout=30)
+        return r.content if r.status_code == 200 else None
+    except Exception:
+        return None
 
 def sev_badge(sev):
     sev = (sev or "MEDIUM").upper()
-    cls = {"CRITICAL": "critical", "HIGH": "high", "MEDIUM": "medium", "LOW": "low"}.get(sev, "medium")
+    cls = {"CRITICAL":"critical","HIGH":"high","MEDIUM":"medium","LOW":"low"}.get(sev,"medium")
     return f'<span class="badge badge-{cls}">{sev}</span>'
-
 
 def fmt_time(ts):
     try:
-        dt = datetime.fromisoformat(ts)
-        return dt.strftime("%d %b %H:%M:%S")
+        return datetime.fromisoformat(ts).strftime("%d %b %H:%M:%S")
     except Exception:
         return ts or "—"
 
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
-
 with st.sidebar:
-    st.markdown('<div class="sidebar-logo">OpsOracle</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sidebar-sub">Incident Response Platform</div>', unsafe_allow_html=True)
+    st.markdown('<div style="font-size:18px;font-weight:600;letter-spacing:-0.03em;color:#E8EDF5;">OpsOracle</div>', unsafe_allow_html=True)
+    st.markdown('<div style="font-family:IBM Plex Mono,monospace;font-size:10px;color:#4A5568;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:1rem;">Incident Response Platform</div>', unsafe_allow_html=True)
 
     backend_ok = check_backend()
     if backend_ok:
@@ -427,52 +125,37 @@ with st.sidebar:
 
     st.markdown('<div style="font-family:IBM Plex Mono,monospace;font-size:10px;color:#4A5568;margin-top:4px;margin-bottom:1.5rem;">LLM · Llama 3.3 70B (Groq)</div>', unsafe_allow_html=True)
 
-    page = st.radio(
-        "Navigate",
-        ["Dashboard", "Incidents", "Analytics", "AWS Trigger", "Settings"],
-        label_visibility="collapsed"
-    )
+    page = st.radio("Navigate", ["Dashboard", "Incidents", "Analytics", "AWS Trigger", "Settings"], label_visibility="collapsed")
 
     incidents = get_incidents() if backend_ok else []
 
     st.markdown("---")
-    st.markdown(f'<div style="font-family:IBM Plex Mono,monospace;font-size:10px;color:#4A5568;">TOTAL INCIDENTS</div>', unsafe_allow_html=True)
-    st.markdown(f'<div style="font-size:22px;font-weight:600;color:#E8EDF5;">{len(incidents)}</div>', unsafe_allow_html=True)
+    total = len(incidents)
+    critical = sum(1 for i in incidents if i.get("analysis", {}).get("severity", "").upper() == "CRITICAL")
+    aws_real = sum(1 for i in incidents if i.get("source") == "REAL AWS")
+    anomalies = sum(1 for i in incidents if i.get("anomaly", {}).get("is_anomaly"))
 
-    critical_count = sum(1 for i in incidents if i.get("analysis", {}).get("severity", "").upper() == "CRITICAL")
-    aws_count = sum(1 for i in incidents if i.get("source") == "REAL AWS")
-
-    st.markdown(f'<div style="font-family:IBM Plex Mono,monospace;font-size:10px;color:#FF3B30;margin-top:8px;">CRITICAL: {critical_count}</div>', unsafe_allow_html=True)
-    st.markdown(f'<div style="font-family:IBM Plex Mono,monospace;font-size:10px;color:#FF9900;margin-top:4px;">FROM AWS: {aws_count}</div>', unsafe_allow_html=True)
-
+    st.markdown(f'<div style="font-family:IBM Plex Mono,monospace;font-size:10px;color:#4A5568;">INCIDENTS</div><div style="font-size:22px;font-weight:600;color:#E8EDF5;">{total}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="font-family:IBM Plex Mono,monospace;font-size:10px;color:#FF3B30;margin-top:8px;">CRITICAL: {critical}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="font-family:IBM Plex Mono,monospace;font-size:10px;color:#FF9900;margin-top:4px;">FROM AWS: {aws_real}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="font-family:IBM Plex Mono,monospace;font-size:10px;color:#FF6B6B;margin-top:4px;">ANOMALIES: {anomalies}</div>', unsafe_allow_html=True)
 
 if not backend_ok:
-    st.markdown("""
-    <div class="oc-card" style="border-color:rgba(255,59,48,0.3);text-align:center;padding:3rem;">
-        <div style="font-size:2rem;margin-bottom:1rem;">⚠️</div>
-        <div style="font-size:15px;color:#FF3B30;margin-bottom:8px;">Backend Offline</div>
-        <div style="font-family:IBM Plex Mono,monospace;font-size:12px;color:#4A5568;">
-            Run: python -m backend.main
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.error("Backend offline. Run: python -m backend.main")
     st.stop()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# PAGE: DASHBOARD
+# DASHBOARD
 # ══════════════════════════════════════════════════════════════════════════════
-
 if page == "Dashboard":
-
-    # Header
-    col_h1, col_h2 = st.columns([3, 1])
-    with col_h1:
+    col_h, col_btn = st.columns([4, 1])
+    with col_h:
         st.markdown('<h1 style="font-size:24px;font-weight:600;color:#E8EDF5;margin:0;">Command Centre</h1>', unsafe_allow_html=True)
-        st.markdown('<div style="font-family:IBM Plex Mono,monospace;font-size:11px;color:#4A5568;margin-top:4px;">Real-time incident detection and autonomous response</div>', unsafe_allow_html=True)
-    with col_h2:
-        if st.button("+ Trigger Test Incident", use_container_width=True):
-            with st.spinner("Running pipeline..."):
+        st.markdown('<div style="font-family:IBM Plex Mono,monospace;font-size:11px;color:#4A5568;margin-top:4px;">Real-time incident detection · Isolation Forest · RAG · Groq LLM</div>', unsafe_allow_html=True)
+    with col_btn:
+        if st.button("+ Trigger Test", use_container_width=True):
+            with st.spinner("Running full pipeline..."):
                 r = trigger_test()
             if r:
                 st.success(f"Created {r['incident_id']}")
@@ -480,131 +163,111 @@ if page == "Dashboard":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Metrics row
-    total = len(incidents)
-    critical = sum(1 for i in incidents if i.get("analysis", {}).get("severity", "").upper() == "CRITICAL")
     high = sum(1 for i in incidents if i.get("analysis", {}).get("severity", "").upper() == "HIGH")
-    aws_real = sum(1 for i in incidents if i.get("source") == "REAL AWS")
+    rag_kb = max((i.get("rag_context", {}).get("knowledge_base_size", 0) for i in incidents), default=0)
 
-    m1, m2, m3, m4 = st.columns(4)
-    with m1:
-        st.markdown(f"""
-        <div class="metric-card info">
-            <div class="label">Total Incidents</div>
-            <div class="value">{total}</div>
-            <div class="sub">all time</div>
-        </div>""", unsafe_allow_html=True)
-    with m2:
-        st.markdown(f"""
-        <div class="metric-card danger">
-            <div class="label">Critical</div>
-            <div class="value">{critical}</div>
-            <div class="sub">blast radius</div>
-        </div>""", unsafe_allow_html=True)
-    with m3:
-        st.markdown(f"""
-        <div class="metric-card warning">
-            <div class="label">High Severity</div>
-            <div class="value">{high}</div>
-            <div class="sub">needs attention</div>
-        </div>""", unsafe_allow_html=True)
-    with m4:
-        st.markdown(f"""
-        <div class="metric-card success">
-            <div class="label">From Real AWS</div>
-            <div class="value">{aws_real}</div>
-            <div class="sub">live cloudwatch</div>
-        </div>""", unsafe_allow_html=True)
+    c1, c2, c3, c4 = st.columns(4)
+    c1.markdown(f'<div class="metric-card info"><div class="lbl">Total Incidents</div><div class="val">{total}</div><div class="sub">all time</div></div>', unsafe_allow_html=True)
+    c2.markdown(f'<div class="metric-card danger"><div class="lbl">Critical</div><div class="val">{critical}</div><div class="sub">blast radius</div></div>', unsafe_allow_html=True)
+    c3.markdown(f'<div class="metric-card warning"><div class="lbl">Anomalies Detected</div><div class="val">{anomalies}</div><div class="sub">isolation forest</div></div>', unsafe_allow_html=True)
+    c4.markdown(f'<div class="metric-card success"><div class="lbl">RAG Knowledge Base</div><div class="val">{rag_kb}</div><div class="sub">incidents stored</div></div>', unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
     if not incidents:
-        st.markdown("""
-        <div class="oc-card" style="text-align:center;padding:3rem;">
-            <div class="empty-state">
-                <div class="icon">📡</div>
-                <div class="title">No incidents detected</div>
-                <div class="desc">Click "Trigger Test Incident" to run the full pipeline</div>
-            </div>
-        </div>""", unsafe_allow_html=True)
+        st.markdown('<div class="oc-card" style="text-align:center;padding:3rem;"><div style="font-size:2rem;margin-bottom:1rem;">📡</div><div style="font-size:14px;color:#8A95A5;">No incidents yet — click Trigger Test to run the full pipeline</div></div>', unsafe_allow_html=True)
     else:
-        col_left, col_right = st.columns([3, 2])
+        left, right = st.columns([3, 2])
 
-        with col_left:
-            st.markdown('<div class="section-title">Recent Incidents</div>', unsafe_allow_html=True)
-            st.markdown("<br>", unsafe_allow_html=True)
-
+        with left:
+            st.markdown('<div class="sec-title">Recent Incidents</div>', unsafe_allow_html=True)
             for inc in list(reversed(incidents))[:5]:
                 analysis = inc.get("analysis", {})
                 cascade = inc.get("cascade", {})
                 sev = analysis.get("severity", "MEDIUM").upper()
                 source = inc.get("source", "manual")
-                src_class = "aws-source" if source == "REAL AWS" else "manual-source"
+                src_cls = "aws-src" if source == "REAL AWS" else "manual-src"
                 src_badge = '<span class="badge badge-aws">AWS</span>' if source == "REAL AWS" else '<span class="badge badge-medium">TEST</span>'
+                root = analysis.get("root_cause", "—")
+                root_short = root[:110] + "..." if len(root) > 110 else root
                 affected = cascade.get("total_affected", 0)
                 blast = cascade.get("blast_radius_level", "unknown").upper()
-                root = analysis.get("root_cause", "No analysis available")
-                root_short = root[:120] + "..." if len(root) > 120 else root
+                is_anomaly = inc.get("anomaly", {}).get("is_anomaly", False)
+                anomaly_badge = '<span class="badge badge-critical">⚠ ANOMALY</span>' if is_anomaly else ''
 
                 st.markdown(f"""
-                <div class="incident-card {src_class}">
-                    <div class="incident-header">
-                        <span class="incident-id">{inc.get('id', '—')}</span>
-                        <div style="display:flex;gap:6px;align-items:center;">
-                            {src_badge}
-                            {sev_badge(sev)}
-                        </div>
+                <div class="inc-card {src_cls}">
+                    <div class="inc-hdr">
+                        <span class="inc-id">{inc.get('id','—')[:28]}...</span>
+                        <div style="display:flex;gap:5px;align-items:center;">{anomaly_badge}{src_badge}{sev_badge(sev)}</div>
                     </div>
-                    <div class="incident-cause">{root_short}</div>
-                    <div class="incident-footer">
+                    <div class="inc-cause">{root_short}</div>
+                    <div class="inc-footer">
                         <span class="tag">{blast} blast</span>
                         <span class="tag">{affected} services</span>
-                        <span class="incident-time">{fmt_time(inc.get('timestamp', ''))}</span>
+                        <span class="inc-time">{fmt_time(inc.get('timestamp',''))}</span>
                     </div>
                 </div>""", unsafe_allow_html=True)
 
-        with col_right:
-            st.markdown('<div class="section-title">Latest Analysis</div>', unsafe_allow_html=True)
-            st.markdown("<br>", unsafe_allow_html=True)
-
+        with right:
             latest = incidents[-1]
             analysis = latest.get("analysis", {})
             cascade = latest.get("cascade", {})
+            anomaly = latest.get("anomaly", {})
+            rag_ctx = latest.get("rag_context", {})
 
-            st.markdown(f"""
-            <div class="oc-card-glow">
-                <div style="font-family:IBM Plex Mono,monospace;font-size:10px;color:#4A5568;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.1em;">Root Cause</div>
-                <div style="font-size:13px;color:#C8D0DC;line-height:1.6;margin-bottom:1rem;">{analysis.get('root_cause','—')}</div>
+            st.markdown('<div class="sec-title">Latest Analysis</div>', unsafe_allow_html=True)
 
-                <div style="font-family:IBM Plex Mono,monospace;font-size:10px;color:#4A5568;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.1em;">Recommended Fix</div>
-                <div style="font-size:12px;color:#8A95A5;line-height:1.5;margin-bottom:1rem;">{str(analysis.get('recommended_fix','—'))[:200]}...</div>
+            root_cause_text = analysis.get('root_cause', '—')
+            recommended_fix_text = str(analysis.get('recommended_fix', '—'))[:200]
+            model_name = analysis.get('model', '—').upper()
+            confidence = int(analysis.get('confidence', 0) * 100)
+            anomaly_score = anomaly.get('anomaly_score', 0)
+            is_anomaly = anomaly.get('is_anomaly', False)
+            similar_count = rag_ctx.get('similar_count', 0)
+            anomaly_color = '#FF3B30' if is_anomaly else '#34C759'
+            anomaly_label = '⚠ ANOMALY DETECTED' if is_anomaly else '✓ NORMAL'
+            services_html = "".join(f'<span class="tag">{s}</span>' for s in cascade.get("all_affected_services", []))
 
-                <div style="font-family:IBM Plex Mono,monospace;font-size:10px;color:#4A5568;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.1em;">Blast Radius</div>
-                <div style="display:flex;flex-wrap:wrap;gap:6px;">
-                    {"".join(f'<span class="tag">{s}</span>' for s in cascade.get("all_affected_services", []))}
+            latest_html = f"""<div class="oc-glow">
+                <div style="font-family:IBM Plex Mono,monospace;font-size:10px;color:#4A5568;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.1em;">Root Cause</div>
+                <div style="font-size:13px;color:#C8D0DC;line-height:1.6;margin-bottom:12px;">{root_cause_text}</div>
+                <div style="font-family:IBM Plex Mono,monospace;font-size:10px;color:#4A5568;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.1em;">Recommended Fix</div>
+                <div style="font-size:12px;color:#8A95A5;line-height:1.5;margin-bottom:12px;">{recommended_fix_text}...</div>
+                <div style="font-family:IBM Plex Mono,monospace;font-size:10px;color:#4A5568;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.1em;">Blast Radius</div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">{services_html}</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+                    <div style="background:#141920;border-radius:6px;padding:8px;font-family:IBM Plex Mono,monospace;font-size:10px;">
+                        <div style="color:#4A5568;margin-bottom:3px;">ANOMALY SCORE</div>
+                        <div style="color:{anomaly_color};font-size:14px;font-weight:500;">{anomaly_score}</div>
+                        <div style="color:#4A5568;font-size:9px;">{anomaly_label}</div>
+                    </div>
+                    <div style="background:#141920;border-radius:6px;padding:8px;font-family:IBM Plex Mono,monospace;font-size:10px;">
+                        <div style="color:#4A5568;margin-bottom:3px;">RAG CONTEXT</div>
+                        <div style="color:#007AFF;font-size:14px;font-weight:500;">{similar_count}</div>
+                        <div style="color:#4A5568;font-size:9px;">similar past incidents</div>
+                    </div>
                 </div>
-
-                <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid #1C2333;font-family:IBM Plex Mono,monospace;font-size:10px;color:#4A5568;">
-                    MODEL · {analysis.get('model','—').upper()}
+                <div style="padding-top:10px;border-top:1px solid #1C2333;font-family:IBM Plex Mono,monospace;font-size:10px;color:#4A5568;">
+                    MODEL · {model_name} · CONFIDENCE · {confidence}%
                 </div>
-            </div>""", unsafe_allow_html=True)
+            </div>"""
 
-            # Severity breakdown mini chart
+            st.markdown(latest_html, unsafe_allow_html=True)
+
             if len(incidents) >= 2:
-                st.markdown('<div class="section-title" style="margin-top:1rem;">Severity Breakdown</div>', unsafe_allow_html=True)
+                st.markdown('<div class="sec-title" style="margin-top:1rem;">Severity Breakdown</div>', unsafe_allow_html=True)
                 sev_map = {}
                 for i in incidents:
                     s = i.get("analysis", {}).get("severity", "MEDIUM").upper()
                     sev_map[s] = sev_map.get(s, 0) + 1
-                st.bar_chart(sev_map, height=140, use_container_width=True)
+                st.bar_chart(sev_map, height=130, use_container_width=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# PAGE: INCIDENTS
+# INCIDENTS
 # ══════════════════════════════════════════════════════════════════════════════
-
 elif page == "Incidents":
-
     col_t, col_b = st.columns([3, 1])
     with col_t:
         st.markdown('<h1 style="font-size:24px;font-weight:600;color:#E8EDF5;margin:0;">Incident Log</h1>', unsafe_allow_html=True)
@@ -614,300 +277,273 @@ elif page == "Incidents":
             with st.spinner("Running pipeline..."):
                 r = trigger_test()
             if r:
-                st.success(f"Created")
+                st.success("Created")
                 st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
 
     if not incidents:
-        st.markdown("""
-        <div class="oc-card" style="text-align:center;padding:3rem;">
-            <div class="empty-state">
-                <div class="icon">🗂️</div>
-                <div class="title">No incidents yet</div>
-                <div class="desc">Trigger a test incident or connect real AWS</div>
-            </div>
-        </div>""", unsafe_allow_html=True)
+        st.markdown('<div class="oc-card" style="text-align:center;padding:3rem;"><div style="font-size:2rem;">🗂️</div><div style="font-size:14px;color:#8A95A5;margin-top:0.5rem;">No incidents yet</div></div>', unsafe_allow_html=True)
     else:
         for inc in reversed(incidents):
             analysis = inc.get("analysis", {})
             cascade = inc.get("cascade", {})
+            anomaly = inc.get("anomaly", {})
+            rag_ctx = inc.get("rag_context", {})
             sev = analysis.get("severity", "MEDIUM").upper()
             source = inc.get("source", "manual")
             src_label = "🟠 REAL AWS" if source == "REAL AWS" else "🔵 TEST"
-            affected_svcs = cascade.get("all_affected_services", [])
+            is_anomaly = anomaly.get("is_anomaly", False)
+            anomaly_str = f"⚠ YES (score: {anomaly.get('anomaly_score', 0)})" if is_anomaly else f"✓ NO (score: {anomaly.get('anomaly_score', 0)})"
+            inc_id = inc.get('id', '—')
 
-            with st.expander(f"{inc.get('id','—')}  ·  {sev}  ·  {src_label}  ·  {fmt_time(inc.get('timestamp',''))}"):
-                c1, c2 = st.columns(2)
+            with st.expander(f"{inc_id[:35]}...  ·  {sev}  ·  {src_label}  ·  {fmt_time(inc.get('timestamp',''))}"):
 
-                with c1:
-                    st.markdown("**Root Cause**")
-                    st.markdown(f'<div style="font-size:13px;color:#C8D0DC;line-height:1.6;">{analysis.get("root_cause","—")}</div>', unsafe_allow_html=True)
+                tab1, tab2, tab3, tab4 = st.tabs(["📋 Analysis", "🔍 Anomaly & RAG", "📝 Post-Mortem", "📊 Metrics"])
 
-                    st.markdown("<br>**Recommended Fix**")
-                    st.markdown(f'<div style="font-size:13px;color:#8A95A5;line-height:1.6;">{analysis.get("recommended_fix","—")}</div>', unsafe_allow_html=True)
+                with tab1:
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        st.markdown("**Root Cause**")
+                        st.markdown(f'<div style="font-size:13px;color:#C8D0DC;line-height:1.6;background:#141920;padding:10px;border-radius:6px;">{analysis.get("root_cause","—")}</div>', unsafe_allow_html=True)
+                        st.markdown("**Recommended Fix**")
+                        st.markdown(f'<div style="font-size:13px;color:#8A95A5;line-height:1.6;background:#141920;padding:10px;border-radius:6px;">{analysis.get("recommended_fix","—")}</div>', unsafe_allow_html=True)
+                        st.markdown("**Remediation Steps**")
+                        for step in analysis.get("remediation_steps", []):
+                            clean_step = step.replace("**", "").replace("*", "")
+                            st.markdown(f'<div style="font-family:IBM Plex Mono,monospace;font-size:12px;color:#7DD3FC;padding:3px 0;line-height:1.6;">→ {clean_step}</div>', unsafe_allow_html=True)
+                    with c2:
+                        st.markdown("**Blast Radius**")
+                        blast_level = cascade.get("blast_radius_level","unknown").upper()
+                        blast_color = {"CRITICAL":"#FF3B30","HIGH":"#FF9500","MEDIUM":"#007AFF","LOW":"#34C759"}.get(blast_level,"#4A5568")
+                        st.markdown(f'<div style="font-size:20px;font-weight:600;color:{blast_color};margin-bottom:8px;">{blast_level}</div>', unsafe_allow_html=True)
+                        services_tags = "".join(f'<span class="tag">{s}</span> ' for s in cascade.get("all_affected_services",[]))
+                        st.markdown(f'<div style="display:flex;flex-wrap:wrap;gap:6px;">{services_tags}</div>', unsafe_allow_html=True)
+                        st.markdown("**Confidence & Model**")
+                        st.markdown(f'<div style="font-family:IBM Plex Mono,monospace;font-size:11px;color:#4A5568;">MODEL: {analysis.get("model","—").upper()}<br>CONFIDENCE: {int(analysis.get("confidence",0)*100)}%</div>', unsafe_allow_html=True)
 
-                    st.markdown("<br>**Remediation Steps**")
-                    for step in analysis.get("remediation_steps", []):
-                        st.markdown(f'<div style="font-family:IBM Plex Mono,monospace;font-size:12px;color:#7DD3FC;padding:3px 0;">→ {step}</div>', unsafe_allow_html=True)
+                with tab2:
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        st.markdown("**Isolation Forest — Anomaly Detection**")
+                        anomaly_cls = "anomaly-positive" if is_anomaly else "anomaly-negative"
+                        st.markdown(f"""
+                        <div class="{anomaly_cls}" style="margin-bottom:10px;">
+                            {'⚠ ANOMALY DETECTED' if is_anomaly else '✓ NO ANOMALY'}
+                        </div>""", unsafe_allow_html=True)
+                        st.markdown(f'<div style="font-family:IBM Plex Mono,monospace;font-size:11px;color:#4A5568;">SCORE: <span style="color:#C8D0DC;">{anomaly.get("anomaly_score","—")}</span><br>METHOD: <span style="color:#C8D0DC;">{anomaly.get("detection_method","isolation_forest")}</span></div>', unsafe_allow_html=True)
 
-                with c2:
-                    st.markdown("**Blast Radius**")
-                    blast_level = cascade.get("blast_radius_level", "unknown").upper()
-                    blast_color = {"CRITICAL": "#FF3B30", "HIGH": "#FF9500", "MEDIUM": "#007AFF", "LOW": "#34C759"}.get(blast_level, "#4A5568")
-                    st.markdown(f'<div style="font-size:18px;font-weight:600;color:{blast_color};margin-bottom:8px;">{blast_level}</div>', unsafe_allow_html=True)
-                    st.markdown('<div style="display:flex;flex-wrap:wrap;gap:6px;">' + "".join(f'<span class="tag">{s}</span>' for s in affected_svcs) + '</div>', unsafe_allow_html=True)
+                        breaches = anomaly.get("threshold_breaches", [])
+                        if breaches:
+                            st.markdown("**Threshold Breaches**")
+                            for b in breaches:
+                                st.markdown(f'<div style="font-family:IBM Plex Mono,monospace;font-size:11px;color:#FF9500;">⚠ {b}</div>', unsafe_allow_html=True)
 
-                    st.markdown("<br>**Metrics at Incident Time**")
+                    with c2:
+                        st.markdown("**RAG — Similar Past Incidents**")
+                        similar_incidents = rag_ctx.get("similar_incidents", [])
+                        kb_size = rag_ctx.get("knowledge_base_size", 0)
+                        st.markdown(f'<div style="font-family:IBM Plex Mono,monospace;font-size:10px;color:#4A5568;margin-bottom:8px;">KB SIZE: {kb_size} incidents | FOUND: {rag_ctx.get("similar_count",0)}</div>', unsafe_allow_html=True)
+
+                        if similar_incidents:
+                            for sim in similar_incidents:
+                                score = sim.get("similarity_score", 0)
+                                root = sim.get("root_cause", "—")[:80]
+                                st.markdown(f"""
+                                <div class="rag-item">
+                                    <div class="rag-score">SIMILARITY: {score:.3f}</div>
+                                    <div>{root}...</div>
+                                </div>""", unsafe_allow_html=True)
+                        else:
+                            st.markdown('<div style="font-family:IBM Plex Mono,monospace;font-size:11px;color:#4A5568;">No similar incidents found in knowledge base yet.<br>Generate more incidents to build the RAG memory.</div>', unsafe_allow_html=True)
+
+                with tab3:
+                    st.markdown("**Auto-Generated Post-Mortem Report**")
+                    postmortem = inc.get("postmortem", "")
+                    if postmortem:
+                        st.markdown(f'<div class="postmortem-box">{postmortem}</div>', unsafe_allow_html=True)
+                        st.markdown("<br>")
+
+                        # PDF download
+                        pdf_bytes = get_postmortem_pdf(inc_id)
+                        if pdf_bytes:
+                            st.download_button(
+                                label="⬇ Download Post-Mortem PDF",
+                                data=pdf_bytes,
+                                file_name=f"postmortem_{inc_id[:20]}.pdf",
+                                mime="application/pdf",
+                                use_container_width=True,
+                                key=f"pdf_{inc_id}"
+                            )
+                        else:
+                            st.warning("PDF generation failed — check backend logs")
+                    else:
+                        st.markdown('<div style="font-family:IBM Plex Mono,monospace;font-size:12px;color:#4A5568;">Post-mortem not available for this incident.<br>Re-trigger the incident to generate one.</div>', unsafe_allow_html=True)
+
+                with tab4:
+                    st.markdown("**Metrics at Incident Time**")
                     metrics = inc.get("metrics", {})
-                    for k, v in metrics.items():
-                        if k not in ("timestamp", "function_name"):
-                            st.markdown(f'<div style="font-family:IBM Plex Mono,monospace;font-size:11px;color:#4A5568;padding:2px 0;">{k}: <span style="color:#C8D0DC;">{v}</span></div>', unsafe_allow_html=True)
-
-                    st.markdown("<br>")
-                    st.markdown(f'<div style="font-family:IBM Plex Mono,monospace;font-size:10px;color:#4A5568;">MODEL · {analysis.get("model","—").upper()}<br>CONFIDENCE · {analysis.get("confidence",0):.0%}</div>', unsafe_allow_html=True)
+                    metric_cols = st.columns(3)
+                    metric_items = [(k, v) for k, v in metrics.items() if k not in ("timestamp", "function_name")]
+                    for idx, (k, v) in enumerate(metric_items):
+                        with metric_cols[idx % 3]:
+                            st.metric(k.replace("_", " ").title(), v)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# PAGE: ANALYTICS
+# ANALYTICS
 # ══════════════════════════════════════════════════════════════════════════════
-
 elif page == "Analytics":
-
     st.markdown('<h1 style="font-size:24px;font-weight:600;color:#E8EDF5;margin:0;">Analytics</h1>', unsafe_allow_html=True)
     st.markdown('<div style="font-family:IBM Plex Mono,monospace;font-size:11px;color:#4A5568;margin-top:4px;margin-bottom:1.5rem;">Patterns across all incidents</div>', unsafe_allow_html=True)
 
     if not incidents:
-        st.markdown("""
-        <div class="oc-card" style="text-align:center;padding:3rem;">
-            <div class="empty-state">
-                <div class="icon">📊</div>
-                <div class="title">No data yet</div>
-                <div class="desc">Trigger at least 3 incidents to see analytics</div>
-            </div>
-        </div>""", unsafe_allow_html=True)
+        st.markdown('<div class="oc-card" style="text-align:center;padding:3rem;"><div style="font-size:2rem;">📊</div><div style="font-size:14px;color:#8A95A5;margin-top:0.5rem;">Trigger at least 3 incidents to see analytics</div></div>', unsafe_allow_html=True)
     else:
         sev_counts = {}
         service_counts = {}
         source_counts = {"REAL AWS": 0, "TEST": 0}
         blast_counts = {}
+        anomaly_scores = []
 
         for i in incidents:
             sev = i.get("analysis", {}).get("severity", "MEDIUM").upper()
             sev_counts[sev] = sev_counts.get(sev, 0) + 1
-
             for svc in i.get("cascade", {}).get("all_affected_services", []):
                 service_counts[svc] = service_counts.get(svc, 0) + 1
-
             src = i.get("source", "manual")
-            if src == "REAL AWS":
-                source_counts["REAL AWS"] += 1
-            else:
-                source_counts["TEST"] += 1
-
+            source_counts["REAL AWS" if src == "REAL AWS" else "TEST"] += 1
             bl = i.get("cascade", {}).get("blast_radius_level", "unknown").upper()
             blast_counts[bl] = blast_counts.get(bl, 0) + 1
+            score = i.get("anomaly", {}).get("anomaly_score", 0)
+            if score:
+                anomaly_scores.append(score)
 
-        col1, col2 = st.columns(2)
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown('<div class="sec-title">Incidents by Severity</div>', unsafe_allow_html=True)
+            st.bar_chart(sev_counts, height=200)
+            st.markdown('<div class="sec-title" style="margin-top:1rem;">Incident Source</div>', unsafe_allow_html=True)
+            st.bar_chart(source_counts, height=200)
+        with c2:
+            st.markdown('<div class="sec-title">Most Affected Services</div>', unsafe_allow_html=True)
+            st.bar_chart(service_counts, height=200)
+            st.markdown('<div class="sec-title" style="margin-top:1rem;">Blast Radius Levels</div>', unsafe_allow_html=True)
+            st.bar_chart(blast_counts, height=200)
 
-        with col1:
-            st.markdown('<div class="section-title">Incidents by Severity</div>', unsafe_allow_html=True)
-            st.bar_chart(sev_counts, height=200, use_container_width=True)
-
-            st.markdown('<br><div class="section-title">Incident Source</div>', unsafe_allow_html=True)
-            st.bar_chart(source_counts, height=200, use_container_width=True)
-
-        with col2:
-            st.markdown('<div class="section-title">Most Affected Services</div>', unsafe_allow_html=True)
-            st.bar_chart(service_counts, height=200, use_container_width=True)
-
-            st.markdown('<br><div class="section-title">Blast Radius Levels</div>', unsafe_allow_html=True)
-            st.bar_chart(blast_counts, height=200, use_container_width=True)
-
-        # Summary stats
-        st.markdown("<br>")
-        st.markdown('<div class="section-title">Summary</div>', unsafe_allow_html=True)
-        st.markdown("<br>", unsafe_allow_html=True)
-
+        st.markdown('<div class="sec-title">Summary Stats</div>', unsafe_allow_html=True)
         s1, s2, s3, s4 = st.columns(4)
-        with s1:
-            most_sev = max(sev_counts, key=sev_counts.get) if sev_counts else "—"
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="label">Most Common Severity</div>
-                <div class="value" style="font-size:18px;">{most_sev}</div>
-            </div>""", unsafe_allow_html=True)
-        with s2:
-            most_svc = max(service_counts, key=service_counts.get) if service_counts else "—"
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="label">Most Affected Service</div>
-                <div class="value" style="font-size:18px;">{most_svc.upper()}</div>
-            </div>""", unsafe_allow_html=True)
-        with s3:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="label">Real AWS Incidents</div>
-                <div class="value" style="font-size:18px;">{source_counts['REAL AWS']}</div>
-            </div>""", unsafe_allow_html=True)
-        with s4:
-            most_blast = max(blast_counts, key=blast_counts.get) if blast_counts else "—"
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="label">Most Common Blast Level</div>
-                <div class="value" style="font-size:18px;">{most_blast}</div>
-            </div>""", unsafe_allow_html=True)
+        most_sev = max(sev_counts, key=sev_counts.get) if sev_counts else "—"
+        most_svc = max(service_counts, key=service_counts.get) if service_counts else "—"
+        avg_score = round(sum(anomaly_scores)/len(anomaly_scores), 3) if anomaly_scores else 0
+
+        s1.markdown(f'<div class="metric-card"><div class="lbl">Most Common Severity</div><div class="val" style="font-size:18px;">{most_sev}</div></div>', unsafe_allow_html=True)
+        s2.markdown(f'<div class="metric-card"><div class="lbl">Most Affected Service</div><div class="val" style="font-size:18px;">{most_svc.upper()}</div></div>', unsafe_allow_html=True)
+        s3.markdown(f'<div class="metric-card"><div class="lbl">Avg Anomaly Score</div><div class="val" style="font-size:18px;">{avg_score}</div></div>', unsafe_allow_html=True)
+        s4.markdown(f'<div class="metric-card"><div class="lbl">Real AWS Incidents</div><div class="val" style="font-size:18px;">{source_counts["REAL AWS"]}</div></div>', unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# PAGE: AWS TRIGGER
+# AWS TRIGGER
 # ══════════════════════════════════════════════════════════════════════════════
-
 elif page == "AWS Trigger":
-
     st.markdown('<h1 style="font-size:24px;font-weight:600;color:#E8EDF5;margin:0;">AWS Live Trigger</h1>', unsafe_allow_html=True)
-    st.markdown('<div style="font-family:IBM Plex Mono,monospace;font-size:11px;color:#4A5568;margin-top:4px;margin-bottom:1.5rem;">Trigger real Lambda failures → read real CloudWatch logs → full pipeline</div>', unsafe_allow_html=True)
+    st.markdown('<div style="font-family:IBM Plex Mono,monospace;font-size:11px;color:#4A5568;margin-top:4px;margin-bottom:1.5rem;">Trigger real Lambda failures → CloudWatch logs → full pipeline → postmortem PDF</div>', unsafe_allow_html=True)
 
-    st.markdown("""
-    <div class="oc-card" style="border-color:rgba(255,153,0,0.25);margin-bottom:1.5rem;">
-        <div style="font-family:IBM Plex Mono,monospace;font-size:10px;color:#FF9900;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Live AWS Integration</div>
-        <div style="font-size:13px;color:#8A95A5;line-height:1.6;">
-            These buttons trigger the <code>opsoracle-demo-failure</code> Lambda function in your AWS account (ap-south-1).
-            OpsOracle reads the real CloudWatch logs, fetches real metrics, and runs the full incident response pipeline.
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="oc-card" style="border-color:rgba(255,153,0,0.25);margin-bottom:1.5rem;"><div style="font-family:IBM Plex Mono,monospace;font-size:10px;color:#FF9900;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Live AWS Integration</div><div style="font-size:13px;color:#8A95A5;line-height:1.6;">Triggers <code>opsoracle-demo-failure</code> Lambda in ap-south-1. OpsOracle reads real CloudWatch logs, runs Isolation Forest, RAG search, Groq LLM analysis, and generates a downloadable post-mortem PDF.</div></div>', unsafe_allow_html=True)
 
     col_a, col_b, col_c = st.columns(3)
-
     with col_a:
-        st.markdown("""
-        <div class="oc-card" style="border-color:rgba(255,59,48,0.25);text-align:center;margin-bottom:10px;">
-            <div style="font-size:1.5rem;margin-bottom:8px;">⚡</div>
-            <div style="font-size:13px;font-weight:500;color:#E8EDF5;margin-bottom:4px;">Lambda Timeout</div>
-            <div style="font-family:IBM Plex Mono,monospace;font-size:10px;color:#4A5568;">Simulates execution timeout</div>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("Trigger Timeout", use_container_width=True, key="aws_timeout"):
-            with st.spinner("Invoking Lambda... reading CloudWatch..."):
+        st.markdown('<div class="oc-card" style="border-color:rgba(255,59,48,0.25);text-align:center;"><div style="font-size:1.5rem;margin-bottom:8px;">⚡</div><div style="font-size:13px;font-weight:500;color:#E8EDF5;margin-bottom:4px;">Lambda Timeout</div><div style="font-family:IBM Plex Mono,monospace;font-size:10px;color:#4A5568;">Simulates execution timeout</div></div>', unsafe_allow_html=True)
+        if st.button("Trigger Timeout", use_container_width=True, key="aws_t"):
+            with st.spinner("Invoking Lambda... reading CloudWatch... running pipeline..."):
                 r = trigger_aws("timeout")
             if r and r.get("status") == "success":
-                st.success(f"Incident created: {r['incident_id']}")
+                st.success(f"{r['incident_id']}")
                 st.rerun()
             else:
-                st.error("Failed — check Lambda is deployed in ap-south-1")
+                st.error("Failed — ensure Lambda is deployed in ap-south-1")
 
     with col_b:
-        st.markdown("""
-        <div class="oc-card" style="border-color:rgba(255,149,0,0.25);text-align:center;margin-bottom:10px;">
-            <div style="font-size:1.5rem;margin-bottom:8px;">💾</div>
-            <div style="font-size:13px;font-weight:500;color:#E8EDF5;margin-bottom:4px;">Memory Error</div>
-            <div style="font-family:IBM Plex Mono,monospace;font-size:10px;color:#4A5568;">Simulates OOM crash</div>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("Trigger Memory Error", use_container_width=True, key="aws_memory"):
-            with st.spinner("Invoking Lambda... reading CloudWatch..."):
+        st.markdown('<div class="oc-card" style="border-color:rgba(255,149,0,0.25);text-align:center;"><div style="font-size:1.5rem;margin-bottom:8px;">💾</div><div style="font-size:13px;font-weight:500;color:#E8EDF5;margin-bottom:4px;">Memory Error</div><div style="font-family:IBM Plex Mono,monospace;font-size:10px;color:#4A5568;">Simulates OOM crash</div></div>', unsafe_allow_html=True)
+        if st.button("Trigger Memory Error", use_container_width=True, key="aws_m"):
+            with st.spinner("Invoking Lambda... reading CloudWatch... running pipeline..."):
                 r = trigger_aws("memory")
             if r and r.get("status") == "success":
-                st.success(f"Incident created: {r['incident_id']}")
+                st.success(f"{r['incident_id']}")
                 st.rerun()
             else:
-                st.error("Failed — check Lambda is deployed in ap-south-1")
+                st.error("Failed — ensure Lambda is deployed in ap-south-1")
 
     with col_c:
-        st.markdown("""
-        <div class="oc-card" style="border-color:rgba(0,122,255,0.25);text-align:center;margin-bottom:10px;">
-            <div style="font-size:1.5rem;margin-bottom:8px;">🔌</div>
-            <div style="font-size:13px;font-weight:500;color:#E8EDF5;margin-bottom:4px;">DB Connection</div>
-            <div style="font-family:IBM Plex Mono,monospace;font-size:10px;color:#4A5568;">Simulates RDS pool exhaustion</div>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("Trigger DB Error", use_container_width=True, key="aws_db"):
-            with st.spinner("Invoking Lambda... reading CloudWatch..."):
+        st.markdown('<div class="oc-card" style="border-color:rgba(0,122,255,0.25);text-align:center;"><div style="font-size:1.5rem;margin-bottom:8px;">🔌</div><div style="font-size:13px;font-weight:500;color:#E8EDF5;margin-bottom:4px;">DB Connection</div><div style="font-family:IBM Plex Mono,monospace;font-size:10px;color:#4A5568;">Simulates RDS pool exhaustion</div></div>', unsafe_allow_html=True)
+        if st.button("Trigger DB Error", use_container_width=True, key="aws_d"):
+            with st.spinner("Invoking Lambda... reading CloudWatch... running pipeline..."):
                 r = trigger_aws("connection")
             if r and r.get("status") == "success":
-                st.success(f"Incident created: {r['incident_id']}")
+                st.success(f"{r['incident_id']}")
                 st.rerun()
             else:
-                st.error("Failed — check Lambda is deployed in ap-south-1")
+                st.error("Failed — ensure Lambda is deployed in ap-south-1")
 
-    st.markdown("<br>")
-    st.markdown('<div class="section-title">Recent AWS Incidents</div>', unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
-
+    
+    st.markdown('<div class="sec-title">Recent AWS Incidents</div>', unsafe_allow_html=True)
     aws_incidents = [i for i in incidents if i.get("source") == "REAL AWS"]
 
     if not aws_incidents:
-        st.markdown("""
-        <div class="oc-card" style="text-align:center;padding:2rem;">
-            <div class="empty-state">
-                <div class="icon">☁️</div>
-                <div class="title">No real AWS incidents yet</div>
-                <div class="desc">Use the buttons above to trigger your first real AWS incident</div>
-            </div>
-        </div>""", unsafe_allow_html=True)
+        st.markdown('<div class="oc-card" style="text-align:center;padding:2rem;"><div style="font-size:2rem;">☁️</div><div style="font-size:14px;color:#8A95A5;margin-top:0.5rem;">No real AWS incidents yet</div></div>', unsafe_allow_html=True)
     else:
         for inc in reversed(aws_incidents):
             analysis = inc.get("analysis", {})
             sev = analysis.get("severity", "HIGH").upper()
+            inc_id = inc.get("id", "—")
+            postmortem_available = bool(inc.get("postmortem"))
+
             st.markdown(f"""
-            <div class="incident-card aws-source">
-                <div class="incident-header">
-                    <span class="incident-id">{inc.get('id','—')}</span>
-                    <div style="display:flex;gap:6px;">
+            <div class="inc-card aws-src">
+                <div class="inc-hdr">
+                    <span class="inc-id">{inc_id[:30]}...</span>
+                    <div style="display:flex;gap:5px;">
                         <span class="badge badge-aws">AWS</span>
                         {sev_badge(sev)}
+                        {'<span class="badge badge-low">📝 POST-MORTEM</span>' if postmortem_available else ''}
                     </div>
                 </div>
-                <div class="incident-cause">{analysis.get('root_cause','—')[:150]}...</div>
-                <div class="incident-footer">
+                <div class="inc-cause">{analysis.get('root_cause','—')[:150]}...</div>
+                <div class="inc-footer">
                     <span class="tag">{inc.get('failure_type','unknown')}</span>
                     <span class="tag">{inc.get('function_name','—')}</span>
-                    <span class="incident-time">{fmt_time(inc.get('timestamp',''))}</span>
+                    <span class="inc-time">{fmt_time(inc.get('timestamp',''))}</span>
                 </div>
             </div>""", unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# PAGE: SETTINGS
+# SETTINGS
 # ══════════════════════════════════════════════════════════════════════════════
-
 elif page == "Settings":
-
     st.markdown('<h1 style="font-size:24px;font-weight:600;color:#E8EDF5;margin:0;">Settings</h1>', unsafe_allow_html=True)
     st.markdown('<div style="font-family:IBM Plex Mono,monospace;font-size:11px;color:#4A5568;margin-top:4px;margin-bottom:1.5rem;">System configuration and status</div>', unsafe_allow_html=True)
 
-    st.markdown("""
-    <div class="oc-card">
-        <div style="font-family:IBM Plex Mono,monospace;font-size:10px;color:#4A5568;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px;">System</div>
-    """, unsafe_allow_html=True)
-
     rows = [
         ("Backend URL", BACKEND_URL),
-        ("LLM Provider", "Groq API"),
-        ("LLM Model", "Llama 3.3 70B (llama-3.3-70b-versatile)"),
+        ("LLM Provider", "Groq API (free tier)"),
+        ("LLM Model", "llama-3.3-70b-versatile"),
+        ("Anomaly Detection", "Isolation Forest — scikit-learn"),
+        ("Anomaly Trees", "100 estimators, contamination=0.1"),
+        ("Embeddings", "all-MiniLM-L6-v2 (384 dimensions)"),
+        ("Vector Search", "Cosine similarity (Pinecone-ready)"),
+        ("RAG Framework", "LangChain + Sentence Transformers"),
         ("AWS Region", "ap-south-1 (Mumbai)"),
         ("Lambda Function", "opsoracle-demo-failure"),
-        ("Embeddings Model", "all-MiniLM-L6-v2"),
-        ("Anomaly Detection", "Isolation Forest (scikit-learn)"),
-        ("RAG Storage", "In-memory (Pinecone-ready)"),
-        ("Version", "OpsOracle v1.1.0"),
+        ("PDF Generator", "ReportLab"),
+        ("Version", "OpsOracle v1.2.0"),
     ]
 
+    st.markdown('<div class="oc-card">', unsafe_allow_html=True)
     for label, value in rows:
-        st.markdown(f"""
-        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #1C2333;">
-            <span style="font-family:IBM Plex Mono,monospace;font-size:11px;color:#4A5568;">{label}</span>
-            <span style="font-family:IBM Plex Mono,monospace;font-size:11px;color:#C8D0DC;">{value}</span>
-        </div>""", unsafe_allow_html=True)
+        st.markdown(f'<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #1C2333;"><span style="font-family:IBM Plex Mono,monospace;font-size:11px;color:#4A5568;">{label}</span><span style="font-family:IBM Plex Mono,monospace;font-size:11px;color:#C8D0DC;">{value}</span></div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("""
-    <div class="oc-card">
-        <div style="font-family:IBM Plex Mono,monospace;font-size:10px;color:#4A5568;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Built by</div>
-        <div style="font-size:14px;font-weight:500;color:#E8EDF5;">Gaurav Sindhi</div>
-        <div style="font-family:IBM Plex Mono,monospace;font-size:11px;color:#4A5568;margin-top:4px;">B.Tech AI/ML · R.C. Patel Institute of Technology</div>
-    </div>
-    """, unsafe_allow_html=True)
+  
+    st.markdown('<div class="oc-card"><div style="font-family:IBM Plex Mono,monospace;font-size:10px;color:#4A5568;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Built by</div><div style="font-size:14px;font-weight:500;color:#E8EDF5;">Gaurav Sindhi</div><div style="font-family:IBM Plex Mono,monospace;font-size:11px;color:#4A5568;margin-top:4px;">B.Tech AI/ML · R.C. Patel Institute of Technology · 2026</div></div>', unsafe_allow_html=True)
