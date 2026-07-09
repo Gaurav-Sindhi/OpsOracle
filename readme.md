@@ -268,7 +268,8 @@ Triggers actual Lambda functions in your AWS account. Reads real CloudWatch log 
 
 **Gaurav Sindhi** — B.Tech AI/ML, R.C. Patel Institute of Technology, 2026
 
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-gaurav--sindhi-blue)](https://linkedin.com/in/gaurav-sindhi)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-gaurav--sindhi-blue)](https://linkedin.com/in/gaurav-sindhi-bb085b257
+)
 [![GitHub](https://img.shields.io/badge/GitHub-GauravSindhi-black)](https://github.com/GauravSindhi)
 
 ---
