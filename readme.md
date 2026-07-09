@@ -270,7 +270,7 @@ Triggers actual Lambda functions in your AWS account. Reads real CloudWatch log 
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-gaurav--sindhi-blue)](https://linkedin.com/in/gaurav-sindhi-bb085b257
 )
-[![GitHub](https://img.shields.io/badge/GitHub-GauravSindhi-black)](https://github.com/GauravSindhi)
+[![GitHub](https://img.shields.io/badge/GitHub-GauravSindhi-black)](https://github.com/Gaurav-Sindhi)
 
 ---
 
