@@ -130,7 +130,7 @@ OpsOracle/
 
 ### 1. Clone
 ```bash
-git clone https://github.com/GauravSindhi/OpsOracle.git
+git clone https://github.com/Gaurav-Sindhi/OpsOracle.git
 cd OpsOracle
 ```
 
